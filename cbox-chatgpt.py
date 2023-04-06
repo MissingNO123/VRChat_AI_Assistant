@@ -1,4 +1,4 @@
-# (C) MissingNO123 17 Mar 2023
+# Copyright (C) MissingNO123 17 Mar 2023
 
 import time
 full_start_time = time.time()
