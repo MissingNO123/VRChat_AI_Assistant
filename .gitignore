@@ -1,5 +1,5 @@
 .env
-neuraltts-381923-783fea83e0e0.json
+neuraltts-*.json
 .vscode/
 __pycache__/
 tts_segments/
