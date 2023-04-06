@@ -1,0 +1,11 @@
+.env
+neuraltts-381923-783fea83e0e0.json
+.vscode/
+__pycache__/
+tts_segments/
+venv/
+Tests/
+desktop.ini
+recording.wav
+tts.mp3
+tts.wav
