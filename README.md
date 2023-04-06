@@ -23,3 +23,10 @@ The following files need to be copied over from `C:\Windows\Media` as I can't up
 - Speech Off.wav
 - Speech On.wav
 - Speech Sleep.wav
+
+# Copyright
+Copyright (c) 2023 MissingNO123. All rights reserved.
+
+The contents of this repository, including all code, documentation, and other materials, unless otherwise specified, are the exclusive property of MissingNO123 and are protected by copyright law. Unauthorized reproduction, distribution, or disclosure of the contents of this repository, in whole or in part, without the express written permission of MissingNO123 is strictly prohibited.
+
+The original version of the Software was authored on the 17th of March, 2023.
