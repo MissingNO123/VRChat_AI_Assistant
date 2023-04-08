@@ -33,7 +33,7 @@ verbosity = False
 chatbox_on = True
 parrot_mode = False
 whisper_prompt = "Hello, I am playing VRChat."
-whisper_model = "small"
+whisper_model = "base"
 soundFeedback = True            # Play sound feedback when recording/stopped/misrecognized
 audio_trigger_enabled = False   # Trigger voice recording on volume threshold
 key_trigger_key = Key.ctrl_r    # What key to double press to trigger recording
@@ -333,6 +333,7 @@ def cut_up_text(text):
     list = []
     for segment in segments:
         synthesize_text(segment, f'tts_segments/segment{i}.wav')
+        clip_audio_end(f'tts_segments/segment{i}.wav')
         list.append(segment)
         i += 1
     # and then
@@ -340,7 +341,7 @@ def cut_up_text(text):
     speaking = True
     for text in list:
         vrc_chatbox(text)
-        play_sound(f'./tts_segments/segment{i}.wav')
+        play_sound(f'./tts_segments/segment{i}_trim.wav')
         i += 1
     speaking = False
 
@@ -455,13 +456,37 @@ def to_wav(file, speed=1.0):
     try:
         start_time = time.time()
         input_stream = ffmpeg.input(file)
-        # .filter('asetrate', 22050*speed ).filter('aresample', 22050)
         audio = input_stream.audio.filter('atempo', speed)
-        output_stream = ffmpeg.output(audio, name, format="wav")
+        output_stream = audio.output(name, format='wav')
         ffmpeg.run(output_stream, cmd=[
                    "ffmpeg", "-nostdin"], capture_stdout=True, capture_stderr=True, overwrite_output=True)
         end_time = time.time()
         verbose_print(f'--ffmpeg took {end_time - start_time:.3f}s')
+    except ffmpeg.Error as e:
+        raise RuntimeError(f"Failed to convert audio: {e.stderr}") from e
+
+
+def clip_audio_end(filename, trim=0.5):
+    """ Cuts off the last 500ms of audio in a file """
+    audio_format_options = {
+        "acodec": "pcm_s16le",
+        "ar": "24000", 
+        "ac": "1",
+        "format": "wav"
+    }
+    name = filename[0:filename.rfind('.')]
+    name = name + '_trim.wav'
+    try:
+        start_time = time.time()
+        probe = ffmpeg.probe(filename)
+        duration = float(probe['format']['duration'])
+        trimmed_length = duration - trim
+        input_stream = ffmpeg.input(filename, ss='0', t=trimmed_length)#, **audio_format_options)
+        audio = input_stream.audio
+        output_stream = audio.output(name, format='wav')
+        output_stream.run(quiet=True, overwrite_output=True)
+        end_time = time.time()
+        verbose_print(f'--ffmpeg clipping took {end_time - start_time:.3f}s')
     except ffmpeg.Error as e:
         raise RuntimeError(f"Failed to convert audio: {e.stderr}") from e
 
