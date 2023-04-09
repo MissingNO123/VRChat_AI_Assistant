@@ -471,7 +471,7 @@ def to_wav(file, speed=1.0):
 
 
 def clip_audio_end(filename, trim=0.400):
-    """ Cuts off the last 500ms of audio in a file """
+    """ Trims the end of audio in a file """
     name = filename[0:filename.rfind('.')]
     name = name + '_trim.wav'
     try:
