@@ -19,6 +19,7 @@ from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import ThreadingOSCUDPServer
 import pyttsx3
 import re
+import shutil
 import threading
 # import torch
 import wave
@@ -333,7 +334,10 @@ def cut_up_text(text):
     list = []
     for segment in segments:
         synthesize_text(segment, f'tts_segments/segment{i}.wav')
-        clip_audio_end(f'tts_segments/segment{i}.wav')
+        if i is not len(segments) - 1:
+            clip_audio_end(f'tts_segments/segment{i}.wav')
+        else: 
+            shutil.copy(f'tts_segments/segment{i}.wav', f'tts_segments/segment{i}_trim.wav')
         list.append(segment)
         i += 1
     # and then
@@ -466,22 +470,18 @@ def to_wav(file, speed=1.0):
         raise RuntimeError(f"Failed to convert audio: {e.stderr}") from e
 
 
-def clip_audio_end(filename, trim=0.5):
+def clip_audio_end(filename, trim=0.400):
     """ Cuts off the last 500ms of audio in a file """
-    audio_format_options = {
-        "acodec": "pcm_s16le",
-        "ar": "24000", 
-        "ac": "1",
-        "format": "wav"
-    }
     name = filename[0:filename.rfind('.')]
     name = name + '_trim.wav'
     try:
         start_time = time.time()
         probe = ffmpeg.probe(filename)
         duration = float(probe['format']['duration'])
+        if duration < 5.0: 
+            trim = 0.250
         trimmed_length = duration - trim
-        input_stream = ffmpeg.input(filename, ss='0', t=trimmed_length)#, **audio_format_options)
+        input_stream = ffmpeg.input(filename, ss='0.030', t=trimmed_length)#, **audio_format_options)
         audio = input_stream.audio
         output_stream = audio.output(name, format='wav')
         output_stream.run(quiet=True, overwrite_output=True)
