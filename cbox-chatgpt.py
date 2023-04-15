@@ -300,7 +300,7 @@ def chatgpt_req(text):
     systemPromptObject = [{"role": "system", "content":
                            systemPrompt
                            + f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M:%S %p")} Eastern Standard Time.'
-                           + f' You are using {gpt}, an AI language model from OpenAI.'}]
+                           + f' You are using {gpt} from OpenAI.'}]
     # create object with system prompt and chat history to send to OpenAI for generation
     messagePlusSystem = systemPromptObject + messageArr
     try:
