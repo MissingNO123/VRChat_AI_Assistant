@@ -47,6 +47,8 @@ out_dev_name = "VoiceMeeter Aux Input"  # Output (tts)
 # elevenVoice = 'Bella'                # Voice to use with 11.ai
 elevenVoice = 'rMQzVEcycGrNzwMhDeq8'   # The Missile Guidance System
 
+gcloud_language_code = 'en-US'
+gcloud_voice_name = f'{gcloud_language_code}-Standard-F'
 
 THRESHOLD = 1024            # adjust this to set the minimum volume threshold to start/stop recording
 CHUNK_SIZE = 1024           # number of frames read at a time
@@ -437,8 +439,8 @@ def gcloud_synthesize_text(text, filename='tts.wav'):
     client = texttospeech.TextToSpeechClient()
     input_text = texttospeech.SynthesisInput(text=filtered_text)
     voice = texttospeech.VoiceSelectionParams(
-        language_code="en-US",
-        name="en-US-Standard-F",
+        language_code=gcloud_language_code,
+        name=gcloud_voice_name,
         ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
     )
     audio_config = texttospeech.AudioConfig(
