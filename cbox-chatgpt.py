@@ -80,6 +80,7 @@ lastFrame = None
 recording = False
 speaking = False
 trigger = False
+panic = False
 silence_timeout = None
 
 key_press_window_timeup = time.time()
@@ -119,6 +120,7 @@ class AudioFile:
         while data != b'':
             self.stream.write(data)
             data = self.wf.readframes(self.chunk)
+            if panic: break
         self.close()
 
     def close(self):
@@ -180,7 +182,7 @@ def old_whisper_transcribe():
     verbose_print(f"--Transcription took: {end_time - start_time:.3f}s, U: {result.no_speech_prob*100:.1f}%")
 
     # print the recognized text
-    print(f">User: {result.text}")
+    print(f"\n>User: {result.text}")
 
     # if not speech, dont send to cgpt
     if result.no_speech_prob > 0.5:
@@ -234,7 +236,7 @@ def whisper_transcribe():
     verbose_print(f"--Transcription took: {end_time - start_time:.3f}s")
 
     # print the recognized text
-    print(f">User: {text}")
+    print(f"\n>User: {text}")
 
     # if keyword detected, send to command handler instead
     if text.lower().startswith("system"):
@@ -297,12 +299,21 @@ def chatgpt_req(text):
     try:
         start_time = time.time()
         completion = openai.ChatCompletion.create(
-            model=gpt.lower(), messages=messagePlusSystem, max_tokens=max_tokens, temperature=0.5, frequency_penalty=0.2, presence_penalty=0.7)
+            model=gpt.lower(),
+            messages=messagePlusSystem,
+            max_tokens=max_tokens,
+            temperature=0.5,
+            frequency_penalty=0.2,
+            presence_penalty=0.5,
+            logit_bias={'1722': -100, '292': -100, '281': -100, '20185': -100, '9552': -100, '3303': -100, '2746': -100, '19849': -100, '41599': -100, '7926': -100,
+            '1058': 1, '18': 1, '299': 5, '3972': 5}
+            # 'As', 'as', ' an', 'AI', ' AI', ' language', ' model', 'model', 'sorry', ' sorry', ' :', '3', ' n', 'ya'
+            )
         end_time = time.time()
         verbose_print(f'--OpenAI API took {end_time - start_time:.3f}s')
         result = completion.choices[0].message.content
         messageArr.append({"role": "assistant", "content": result})
-        print(f">ChatGPT: {result}")
+        print(f"\n>ChatGPT: {result}")
         # tts(filter_for_tts(result), 'en')
         # tts(result, 'en')
         # vrc_chatbox('🛰 Getting TTS from 11.ai...')
@@ -351,7 +362,10 @@ def cut_up_text(text):
 
 
 def tts(text):
+    global speaking
+    speaking = True
     tts_google(text)
+    speaking = False
 
 
 def synthesize_text(text, filename):
@@ -362,8 +376,6 @@ def synthesize_text(text, filename):
 
 def tts_gtrans(text, filename='tts.wav', language='en'):
     """ Returns speech from text using google API """
-    global speaking
-    speaking = True
     filtered_text = filter_for_tts(text)
     start_time = time.time()
     tts = gTTS(filtered_text, lang=language)
@@ -372,13 +384,10 @@ def tts_gtrans(text, filename='tts.wav', language='en'):
     verbose_print(f'--gTTS took {end_time - start_time:.3f}s')
     to_wav('tts.mp3', 1.3)
     play_sound('tts.wav')
-    speaking = False
 
 
 def tts_windows(text, filename='tts.wav'):
     """ Returns speech from text using Windows API """
-    global speaking
-    speaking = True
     ttsEngine = pyttsx3.init()
     ttsEngine.setProperty('rate', 180)
     ttsVoices = ttsEngine.getProperty('voices')
@@ -388,25 +397,19 @@ def tts_windows(text, filename='tts.wav'):
     ttsEngine.runAndWait()
     # to_wav('tts.wav', 1.1)
     play_sound('tts.wav')
-    speaking = False
 
 
 def tts_google(text, filename='tts.wav'):
     """ Returns speech from text using Google Cloud API """
-    global speaking
-    speaking = True
     start_time = time.time()
     gcloud_synthesize_text(text)
     end_time = time.time()
     verbose_print(f'--gcTTS took {end_time - start_time:.3f}s')
     play_sound('tts.wav')
-    speaking = False
 
 
 def tts_eleven(text):
     """ Returns speech from text using Eleven Labs API """
-    global speaking
-    speaking = True
     filename = 'tts'
     verbose_print('--Getting TTS from 11.ai...')
     filtered_text = filter_for_tts(text)
@@ -415,7 +418,6 @@ def tts_eleven(text):
     audio.save(filename)
     to_wav(f'{filename}.mp3')
     play_sound(f'{filename}.wav')
-    speaking = False
 
 
 def eleven_synthesize_text(text, filename):
@@ -610,7 +612,9 @@ def check_doublepress_key(key):
     """ Check if ctrl key is pressed twice within a certain time window """
     global key_press_window_timeup
     global trigger
+    global panic
     if key == key_trigger_key:
+        if speaking: panic = True
         if time.time() > key_press_window_timeup:
             key_press_window_timeup = time.time() + key_press_window
         else:
@@ -699,6 +703,7 @@ def loop():
     global recording
     global trigger
     global silence_timeout
+    global panic
 
     global LOOP
     LOOP = True
@@ -743,6 +748,7 @@ def loop():
                         trigger = False
                         save_recorded_frames(frames)
                         frames = []
+                        panic = False
                 else:
                     # set timeout to now + SILENCE_TIMEOUT seconds
                     silence_timeout = time.time() + SILENCE_TIMEOUT
@@ -754,6 +760,7 @@ def loop():
                     trigger = False
                     save_recorded_frames(frames)
                     frames = []
+                    panic = False
 
             lastFrame = data
             time.sleep(0.001)  # sleep to avoid burning cpu
