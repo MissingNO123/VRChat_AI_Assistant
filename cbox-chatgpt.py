@@ -41,6 +41,7 @@ key_trigger_key = Key.ctrl_r    # What key to double press to trigger recording
 key_press_window = 0.400        # How fast should you double click the key to trigger voice recording
 gpt = "GPT-4"                   # GPT-3.5-Turbo-0301 | GPT-4
 max_tokens = 200                # Max tokens that openai will return
+max_conv_length = 10            # Max length of conversation buffer
 in_dev_name = "VoiceMeeter Aux Output"  # Input  (mic)
 out_dev_name = "VoiceMeeter Aux Input"  # Output (tts)
 
@@ -292,7 +293,7 @@ def filter_for_tts(string):
 
 def chatgpt_req(text):
     """ Sends text to OpenAI, gets the response, and puts it into the chatbox """
-    if len(messageArr) > 10:  # Trim down chat buffer if it gets too long
+    if len(messageArr) > max_conv_length:  # Trim down chat buffer if it gets too long
         messageArr.pop(0)
     # Add user's message to the chat buffer
     messageArr.append({"role": "user", "content": text})
