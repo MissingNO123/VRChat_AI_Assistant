@@ -304,6 +304,7 @@ def chatgpt_req(text):
                            + f' You are using {gpt} from OpenAI.'}]
     # create object with system prompt and chat history to send to OpenAI for generation
     messagePlusSystem = systemPromptObject + messageArr
+    err = None
     try:
         start_time = time.time()
         completion = openai.ChatCompletion.create(
@@ -330,9 +331,6 @@ def chatgpt_req(text):
         else:
             vrc_chatbox(f'💬{result}')
             tts(result)
-        vrc_set_parameter('CGPT_Result', True)
-        vrc_set_parameter('CGPT_End', True)
-        return
     except openai.APIError as e:
         err = e
         print(f"!!Got API error from OpenAI: {e}")
@@ -346,7 +344,8 @@ def chatgpt_req(text):
         err = e
         print(f"!!Other Exception: {e}")
     finally:
-        vrc_chatbox(f'⚠ {err}')
+        if err is not None: vrc_chatbox(f'⚠ {err}')
+        vrc_set_parameter('CGPT_Result', True)
         vrc_set_parameter('CGPT_End', True)
 
 
@@ -357,10 +356,10 @@ def cut_up_text(text):
     if re.search(r'[\s.,?!]', text):
         # Split the text into segments of up to 144 characters using the regex pattern
         segments = re.findall(
-            r'.{1,144}(?<=\S)(?=[,.?!]?\s|$)|\b.{1,144}\b', text)
+            r'.{1,143}(?<=\S)(?=[,.?!]?\s|$)|\b.{1,143}\b', text)
     else:
         # Split the text into chunks of up to 144 characters using list comprehension
-        segments = [text[i:i+144] for i in range(0, len(text), 144)]
+        segments = [text[i:i+143] for i in range(0, len(text), 143)]
     i = 0
     list = []
     for segment in segments:
