@@ -229,6 +229,8 @@ def whisper_transcribe():
         vrc_set_parameter('VoiceRec_End', True)
         vrc_set_parameter('CGPT_Result', True)
         vrc_set_parameter('CGPT_End', True)
+        end_time = time.time()
+        verbose_print(f"--Transcription failed and took: {end_time - start_time:.3f}s")
         return
 
     # Transcribe and concatenate the text segments
