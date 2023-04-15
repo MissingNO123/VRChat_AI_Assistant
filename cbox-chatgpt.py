@@ -332,9 +332,21 @@ def chatgpt_req(text):
             tts(result)
         vrc_set_parameter('CGPT_Result', True)
         vrc_set_parameter('CGPT_End', True)
+        return
+    except openai.APIError as e:
+        err = e
+        print(f"!!Got API error from OpenAI: {e}")
+    except openai.InvalidRequestError as e:
+        err = e
+        print(f"!!Invalid Request: {e}")
+    except openai.OpenAIError as e:
+        err = e
+        print(f"!!Got OpenAI Error from OpenAI: {e}")
     except Exception as e:
-        print(f"!!Got error from OpenAI: {e}")
-        vrc_chatbox(f'⚠ {e}')
+        err = e
+        print(f"!!Other Exception: {e}")
+    finally:
+        vrc_chatbox(f'⚠ {err}')
         vrc_set_parameter('CGPT_End', True)
 
 
