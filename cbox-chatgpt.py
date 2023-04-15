@@ -88,6 +88,8 @@ silence_timeout = None
 key_press_window_timeup = time.time()
 
 # Constants
+pyAudio = pyaudio.PyAudio()
+
 speech_on = "Speech On.wav"
 speech_off = "Speech Sleep.wav"
 speech_mis = "Speech Misrecognition.wav"
@@ -152,10 +154,11 @@ def play_sound_threaded(file):
 def save_recorded_frames(frames, filename=OUTPUT_FILENAME):
     """ Saves recorded frames to a .wav file and sends it to whisper to transcribe it """
     if (soundFeedback):
+        init_audio()
         play_sound_threaded(speech_off)
     wf = wave.open(filename, 'wb')
     wf.setnchannels(2)
-    wf.setsampwidth(p.get_sample_size(FORMAT))
+    wf.setsampwidth(pyAudio.get_sample_size(FORMAT))
     wf.setframerate(RATE)
     wf.writeframes(b''.join(frames))
     wf.close()
@@ -638,6 +641,38 @@ def load_whisper():
     vrc_chatbox('✔️ Voice Recognition Loaded')
 
 
+def init_audio():
+    global vb_in
+    global vb_out
+    info = pyAudio.get_host_api_info_by_index(0)
+    numdevices = info.get('deviceCount')
+    # vrc_chatbox('🔢 Enumerating Audio Devices...')
+    # Get VB Aux Out for Input to Whisper, and VB Aux In for mic input
+    start_time = time.time()
+    for i in range(numdevices):
+        info = pyAudio.get_device_info_by_host_api_device_index(0, i)
+        if (info.get('maxInputChannels')) > 0:
+            if info.get('name').startswith(in_dev_name):
+                verbose_print("~Found Input Device")
+                verbose_print( info.get('name') )
+                vb_out = i
+        if (info.get('maxOutputChannels')) > 0: 
+            if info.get('name').startswith(out_dev_name):
+                verbose_print("~Found Output Device")
+                verbose_print( info.get('name') )
+                vb_in = i
+        if vb_in is not None and vb_out is not None: break
+    if vb_out is None:
+        print("!!Could not find VB AUX Out (mic). Exiting...")
+        exit()
+    if vb_in is None:
+        print("!!Could not find VB AUX In (tts). Exiting...")
+        exit()
+
+    end_time = time.time()
+    verbose_print(f'--Audio initialized in {end_time - start_time:.3f}s')
+
+
 # Program Setup #################################################################################################################################
 
 # VRC OSC init
@@ -651,42 +686,9 @@ vrc_osc_server = ThreadingOSCUDPServer((ip, outPort), dispatcher)
 
 
 # Audio setup
-p = pyaudio.PyAudio()
-info = p.get_host_api_info_by_index(0)
-numdevices = info.get('deviceCount')
-# vrc_chatbox('🔢 Enumerating Audio Devices...')
-# Get VB Aux Out for Input to Whisper
-start_time = time.time()
-for i in range(numdevices):
-    if (p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
-        if p.get_device_info_by_host_api_device_index(0, i).get('name').startswith(in_dev_name):
-            verbose_print("~Found Input Device")
-            verbose_print(
-                p.get_device_info_by_host_api_device_index(0, i).get('name'))
-            vb_out = i
-            break
-# Get VB Aux In for output from TTS
-for i in range(numdevices):
-    if (p.get_device_info_by_host_api_device_index(0, i).get('maxOutputChannels')) > 0:
-        if p.get_device_info_by_host_api_device_index(0, i).get('name').startswith(out_dev_name):
-            verbose_print("~Found Output Device")
-            verbose_print(
-                p.get_device_info_by_host_api_device_index(0, i).get('name'))
-            vb_in = i
-            break
-
-if vb_out is None:
-    print("!!Could not find VB AUX Out (mic). Exiting...")
-    exit()
-if vb_in is None:
-    print("!!Could not find VB AUX In (tts). Exiting...")
-    exit()
-
-end_time = time.time()
-verbose_print(f'--Audio initialized in {end_time - start_time:.3f}s')
-
+init_audio()
 # Create the stream to record user voice
-streamIn = p.open(format=FORMAT,
+streamIn = pyAudio.open(format=FORMAT,
                   channels=2,
                   rate=RATE,
                   input=True,
