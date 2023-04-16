@@ -34,7 +34,7 @@ verbosity = False
 chatbox_on = True
 parrot_mode = False
 whisper_prompt = "Hello, I am playing VRChat."
-whisper_model = "base"
+whisper_model = "tiny.en"
 soundFeedback = True            # Play sound feedback when recording/stopped/misrecognized
 audio_trigger_enabled = False   # Trigger voice recording on volume threshold
 key_trigger_key = Key.ctrl_r    # What key to double press to trigger recording
@@ -66,6 +66,9 @@ OUTPUT_FILENAME = 'recording.wav'
 
 # Assistant System Prompt
 systemPrompt = "You are an AI powered voice activated assistant. You are talking to a user. The user will talk directly to you, and you are able to reply back using text to speech. You can answer the user's questions to the best of your knowlege, but if you are unsure about something you must tell them you do not know enough about the subject. You reply in only one sentence if possible."
+
+# Roomba System Prompt
+#systemPrompt = "You are an AI powered robot vacuum. You are currently cleaning a user's house. You are able to vacuum their floors, and you are also able to reply to the user using text to speech. You can answer the user's questions to the best of your knowlege, but you must focus on the important task at hand to vacuum floors. You reply in only one sentence if possible."
 
 # Insult system prompt
 # systemPrompt = "You are an AI powered voice activated insult machine named BratGPT. The user will talk directly to you, and you insult them no matter what they say. You only ever insult them, and do not say anything else. You talk like a catgirl with a hostile and condescending demeanor. You reply in only one sentence if possible."
@@ -109,6 +112,7 @@ class AudioFile:
 
     def __init__(self, file):
         """ Init audio stream """
+        init_audio()
         self.wf = wave.open(file, 'rb')
         self.p = pyaudio.PyAudio()
         self.stream = self.p.open(
@@ -155,7 +159,6 @@ def play_sound_threaded(file):
 def save_recorded_frames(frames, filename=OUTPUT_FILENAME):
     """ Saves recorded frames to a .wav file and sends it to whisper to transcribe it """
     if (soundFeedback):
-        init_audio()
         play_sound_threaded(speech_off)
     wf = wave.open(filename, 'wb')
     wf.setnchannels(2)
