@@ -1,5 +1,6 @@
 # Copyright (C) MissingNO123 17 Mar 2023
 
+import sys
 import time
 full_start_time = time.time()
 import audioop
@@ -24,6 +25,7 @@ import threading
 # import torch
 import wave
 # import whisper
+import uistuff
 
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -34,7 +36,7 @@ verbosity = False
 chatbox_on = True
 parrot_mode = False
 whisper_prompt = "Hello, I am playing VRChat."
-whisper_model = "tiny.en"
+whisper_model = "base.en"
 soundFeedback = True            # Play sound feedback when recording/stopped/misrecognized
 audio_trigger_enabled = False   # Trigger voice recording on volume threshold
 key_trigger_key = Key.ctrl_r    # What key to double press to trigger recording
@@ -458,6 +460,7 @@ def eleven_synthesize_text(text, filename):
 
 def gcloud_synthesize_text(text, filename='tts.wav'):
     """ Calls Google Cloud API to synthesize speech from the input string of text and writes it to a wav file """
+    global panic
     filtered_text = filter_for_tts(text)
     client = texttospeech.TextToSpeechClient()
     input_text = texttospeech.SynthesisInput(text=filtered_text)
@@ -471,10 +474,15 @@ def gcloud_synthesize_text(text, filename='tts.wav'):
         speaking_rate=1.15,
         pitch=-1.0
     )
-    response = client.synthesize_speech(
-        request={"input": input_text, "voice": voice,
-                 "audio_config": audio_config}
-    )
+    try:
+        response = client.synthesize_speech(
+            request={"input": input_text, "voice": voice,
+                    "audio_config": audio_config}
+        )
+    except Exception as e:
+        print(e)
+        panic = True
+        return
 
     with open(filename, "wb") as out:
         out.write(response.audio_content)
@@ -570,9 +578,9 @@ def handle_command(command):
 
         case 'shutdown':
             print('$ Shutting down...')
-            vrc_chatbox('👋 Okay, goodbye!')
+            vrc_chatbox('👋 Shutting down...')
             play_sound('./prebaked_tts/OkayGoodbye.wav')
-            quit()
+            sys.exit(0)
 
         case 'gpt3':
             gpt = 'GPT-3.5-Turbo'
@@ -653,9 +661,8 @@ def load_whisper():
     with whisper_lock:
         verbose_print("~Attempt to load Whisper...")
         vrc_chatbox('🔄 Loading Voice Recognition...')
+        model = None
         start_time = time.time()
-        # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # model = whisper.load_model(whisper_model, device, in_memory=True) # OpenAI Whisper
         model = WhisperModel(whisper_model, device='cuda', compute_type="int8") # FasterWhisper
         end_time = time.time()
         verbose_print(f'--Whisper loaded in {end_time - start_time:.3f}s')
@@ -684,14 +691,27 @@ def init_audio():
                 vb_in = i
         if vb_in is not None and vb_out is not None: break
     if vb_out is None:
-        print("!!Could not find VB AUX Out (mic). Exiting...")
-        exit()
+        print("!!Could not find input device for mic. Exiting...")
+        raise RuntimeError
     if vb_in is None:
-        print("!!Could not find VB AUX In (tts). Exiting...")
-        exit()
+        print("!!Could not find output device for tts. Exiting...")
+        raise RuntimeError
 
     end_time = time.time()
     verbose_print(f'--Audio initialized in {end_time - start_time:.3f}s')
+
+
+def receiveCheckboxes(checkboxes):
+    global verbosity
+    global chatbox_on 
+    global parrot_mode 
+    global soundFeedback
+    global audio_trigger_enabled
+    verbosity = checkboxes[0]
+    chatbox_on = checkboxes[1]
+    parrot_mode = checkboxes[2]
+    soundFeedback = checkboxes[3]
+    audio_trigger_enabled = checkboxes[4]
 
 
 # Program Setup #################################################################################################################################
@@ -788,19 +808,19 @@ def loop():
                     panic = False
 
             lastFrame = data
-            time.sleep(0.001)  # sleep to avoid burning cpu
+            # time.sleep(0.001)  # sleep to avoid burning cpu
         except Exception as e:
             print(f'!!Exception:\n{e}')
             vrc_chatbox(f'⚠ {e}')
             streamIn.close()
             LOOP = False
-            quit()
+            sys.exit(e)
         except KeyboardInterrupt:
             print('Keyboard interrupt')
             vrc_chatbox(f'⚠ Quitting')
             streamIn.close()
             vrc_osc_server.shutdown()
-            quit()
+            sys.exit("KeyboardInterrupt")
 
 
 def start_server(server):  # (thread target) Starts OSC Listening server
@@ -813,14 +833,21 @@ def start_key_listener():  # (thread target) Starts Keyboard Listener
         listener.join()
 
 
+def start_ui(): # (thread target) Starts GUI
+    uistuff.initialize()
+
 whisper_thread = threading.Thread(name='whisper-thread', target=load_whisper)
 serverThread = threading.Thread(
     name='oscserver-thread', target=start_server, args=(vrc_osc_server,), daemon=True)
 key_listener_thread = threading.Thread(name='keylistener-thread', target=start_key_listener, daemon=True)
+uithread = threading.Thread(name="ui-thread", target=start_ui, daemon=True)
 mainLoopThread = threading.Thread(name='mainloop-thread', target=loop)
 
 whisper_thread.start()
 serverThread.start()
 key_listener_thread.start()
 whisper_thread.join()  # Wait for Whisper to be loaded first before trying to use it
+uithread.start()
 mainLoopThread.start()
+uithread.join()
+sys.exit(0)
