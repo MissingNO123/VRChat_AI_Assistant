@@ -104,6 +104,8 @@ outPort = 9001
 
 LOOP = True
 
+whisper_lock = threading.Lock()
+
 
 # Functions and Class (singular) ##############################################################################################################
 # Loads an audio file, play() will play it through vb aux input
@@ -216,34 +218,35 @@ def whisper_transcribe():
     vrc_chatbox('✍️ Transcribing...')
     verbose_print('~Transcribing...')
 
-    start_time = time.time()
+    with whisper_lock:
+        start_time = time.time()
 
-    # Initialize transcription object on the recording
-    segments, info = model.transcribe(
-        "recording.wav", beam_size=5, initial_prompt=whisper_prompt, no_speech_threshold=0.4, log_prob_threshold=0.8)
+        # Initialize transcription object on the recording
+        segments, info = model.transcribe(
+            "recording.wav", beam_size=5, initial_prompt=whisper_prompt, no_speech_threshold=0.4, log_prob_threshold=0.8)
 
-    verbose_print(f'lang: {info.language}, {info.language_probability * 100:.1f}%')
+        verbose_print(f'lang: {info.language}, {info.language_probability * 100:.1f}%')
 
-    # if not speech, dont bother processing anything  
-    if info.language_probability < 0.8 or info.duration <= (SILENCE_TIMEOUT + 0.3):
-        vrc_chatbox('⚠ [unintelligible]')
-        if (soundFeedback):
-            play_sound_threaded(speech_mis)
-        play_sound('./prebaked_tts/Ididntunderstandthat.wav')
-        vrc_set_parameter('VoiceRec_End', True)
-        vrc_set_parameter('CGPT_Result', True)
-        vrc_set_parameter('CGPT_End', True)
+        # if not speech, dont bother processing anything  
+        if info.language_probability < 0.8 or info.duration <= (SILENCE_TIMEOUT + 0.3):
+            vrc_chatbox('⚠ [unintelligible]')
+            if (soundFeedback):
+                play_sound_threaded(speech_mis)
+            play_sound('./prebaked_tts/Ididntunderstandthat.wav')
+            vrc_set_parameter('VoiceRec_End', True)
+            vrc_set_parameter('CGPT_Result', True)
+            vrc_set_parameter('CGPT_End', True)
+            end_time = time.time()
+            verbose_print(f"--Transcription failed and took: {end_time - start_time:.3f}s")
+            return
+
+        # Transcribe and concatenate the text segments
+        text = ""
+        for segment in segments:
+            text += segment.text
+        text = text.strip()
+
         end_time = time.time()
-        verbose_print(f"--Transcription failed and took: {end_time - start_time:.3f}s")
-        return
-
-    # Transcribe and concatenate the text segments
-    text = ""
-    for segment in segments:
-        text += segment.text
-    text = text.strip()
-
-    end_time = time.time()
     verbose_print(f"--Transcription took: {end_time - start_time:.3f}s")
 
     # print the recognized text
@@ -647,15 +650,16 @@ def check_doublepress_key(key):
 # (thread target) Initialize Faster Whisper and move its model to the GPU if possible
 def load_whisper():
     global model
-    verbose_print("~Attempt to load Whisper...")
-    vrc_chatbox('🔄 Loading Voice Recognition...')
-    start_time = time.time()
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # model = whisper.load_model(whisper_model, device, in_memory=True) # OpenAI Whisper
-    model = WhisperModel(whisper_model, device='cuda', compute_type="int8") # FasterWhisper
-    end_time = time.time()
-    verbose_print(f'--Whisper loaded in {end_time - start_time:.3f}s')
-    vrc_chatbox('✔️ Voice Recognition Loaded')
+    with whisper_lock:
+        verbose_print("~Attempt to load Whisper...")
+        vrc_chatbox('🔄 Loading Voice Recognition...')
+        start_time = time.time()
+        # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # model = whisper.load_model(whisper_model, device, in_memory=True) # OpenAI Whisper
+        model = WhisperModel(whisper_model, device='cuda', compute_type="int8") # FasterWhisper
+        end_time = time.time()
+        verbose_print(f'--Whisper loaded in {end_time - start_time:.3f}s')
+        vrc_chatbox('✔️ Voice Recognition Loaded')
 
 
 def init_audio():
