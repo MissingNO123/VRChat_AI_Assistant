@@ -2,8 +2,8 @@ import tkinter.messagebox
 import customtkinter
 import threading
 import time
-# if __name__ != "__main__": import __main__
-import __main__
+import assistant as main
+import options as opts
 
 """
 frame 1: program options
@@ -47,11 +47,11 @@ class ProgramOptionsFrame(customtkinter.CTkFrame):
             "Audio trigger"
         ]
         self.variables = [
-            __main__.verbosity,
-            __main__.chatbox_on,
-            __main__.parrot_mode,
-            __main__.soundFeedback,
-            __main__.audio_trigger_enabled
+            opts.verbosity,
+            opts.chatbox,
+            opts.parrot_mode,
+            opts.soundFeedback,
+            opts.audio_trigger_enabled
         ]
 
         self.title = customtkinter.CTkLabel(
@@ -73,10 +73,15 @@ class ProgramOptionsFrame(customtkinter.CTkFrame):
     #     globals()[var_name] = bool(checkbox.get())
 
     def _update_checkboxes(self):
-        checkboxes = []
-        for i, checkbox in enumerate(self.checkboxes):
-            checkboxes.append(bool(checkbox.get()))
-        __main__.receiveCheckboxes(checkboxes)
+        opts.verbosity = self.checkboxes[0]
+        opts.chatbox = self.checkboxes[1]
+        opts.parrot_mode = self.checkboxes[2]
+        opts.soundFeedback = self.checkboxes[3]
+        opts.audio_trigger_enabled = self.checkboxes[4]
+        # checkboxes = []
+        # for i, checkbox in enumerate(self.checkboxes):
+        #     checkboxes.append(bool(checkbox.get()))
+        # main.receiveCheckboxes(checkboxes)
 
 
 class AIStuffFrame(customtkinter.CTkFrame):
@@ -92,12 +97,12 @@ class AIStuffFrame(customtkinter.CTkFrame):
 
         vcmd = (self.register(self._validate))
 
-        self.whisper_prompt = customtkinter.StringVar(value=__main__.whisper_prompt)
-        self.selected_whisper_model = customtkinter.StringVar(value=__main__.whisper_model)
-        self.gpt_radio_var = customtkinter.IntVar(value=0 if __main__.gpt == "GPT-3.5-Turbo" else 1)
-        self.max_tokens_var = customtkinter.IntVar(value=__main__.max_tokens)
-        self.max_conv_length_var = customtkinter.IntVar(value=__main__.max_conv_length)
-        self.sytem_prompt_var = customtkinter.StringVar(value=__main__.systemPrompt)
+        self.whisper_prompt = customtkinter.StringVar(value=opts.whisper_prompt)
+        self.selected_whisper_model = customtkinter.StringVar(value=opts.whisper_model)
+        self.gpt_radio_var = customtkinter.IntVar(value=0 if opts.gpt == "GPT-3.5-Turbo" else 1)
+        self.max_tokens_var = customtkinter.IntVar(value=opts.max_tokens)
+        self.max_conv_length_var = customtkinter.IntVar(value=opts.max_conv_length)
+        self.sytem_prompt_var = customtkinter.StringVar(value=opts.systemPrompt)
 
         self.label_whisper_prompt = customtkinter.CTkLabel(self, text="Whisper Prompt: ", fg_color="transparent")
         self.label_whisper_prompt.grid(row=1, column=0, columnspan=2, sticky="w", pady=(4,1), padx=5)
@@ -131,7 +136,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
         self.label_system_prompt = customtkinter.CTkLabel(self, text="GPT System Prompt: ", fg_color="transparent")
         self.label_system_prompt.grid(row=11, column=0, sticky="w", pady=(4,1), padx=5)
         self.textbox_system_prompt = customtkinter.CTkTextbox(self, height=122, wrap="word")
-        self.textbox_system_prompt.insert("0.0", __main__.systemPrompt)
+        self.textbox_system_prompt.insert("0.0", opts.systemPrompt)
         self.textbox_system_prompt.grid(row=12, column=0, columnspan=3, sticky="ew", padx=10, pady=(0,2))
         self.button_system_prompt = customtkinter.CTkButton(self, text="Update System Prompt", command=self._update_system_prompt)
         self.button_system_prompt.grid(row=13, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
@@ -149,28 +154,28 @@ class AIStuffFrame(customtkinter.CTkFrame):
         self.textfield_max_conv_length.bind("<Return>", self._update)
 
     def _update_whisper_prompt(self, event=None):
-        __main__.whisper_prompt = self.whisper_prompt.get()
+        opts.whisper_prompt = self.whisper_prompt.get()
 
     def _update_whisper_model(self, choice):
-        __main__.whisper_model = choice
+        opts.whisper_model = choice
 
     def _update_gpt_model(self):
         value = self.gpt_radio_var.get()
-        __main__.gpt = "GPT-3.5-Turbo" if value == 0 else "GPT-4"
+        opts.gpt = "GPT-3.5-Turbo" if value == 0 else "GPT-4"
 
     def _update_system_prompt(self):
-        __main__.systemPrompt = self.textbox_system_prompt.get("0.0", "end")
+        opts.systemPrompt = self.textbox_system_prompt.get("0.0", "end")
 
     def _reset(self):
-        __main__.handle_command("reset")
+        opts.handle_command("reset")
 
     def _update(self, event=None):
-        __main__.systemPrompt = self.textbox_system_prompt.get("0.0", "end")
+        opts.systemPrompt = self.textbox_system_prompt.get("0.0", "end")
         value = self.gpt_radio_var.get()
-        __main__.gpt = "GPT-3.5-Turbo" if value == 0 else "GPT-4"
-        __main__.whisper_prompt = self.whisper_prompt.get()
-        __main__.max_tokens = int(self.max_tokens_var.get())
-        __main__.max_conv_length = int(self.max_conv_length_var.get())
+        opts.gpt = "GPT-3.5-Turbo" if value == 0 else "GPT-4"
+        opts.whisper_prompt = self.whisper_prompt.get()
+        opts.max_tokens = int(self.max_tokens_var.get())
+        opts.max_conv_length = int(self.max_conv_length_var.get())
 
     def _validate(self, P):
         if P == "":
@@ -196,11 +201,11 @@ class AudioStuffFrame(customtkinter.CTkFrame):
 
         vcmd = (self.register(self._validate))
         
-        self.rms_threshold = customtkinter.StringVar(self, value=__main__.THRESHOLD)
-        self.silence_timeout = customtkinter.StringVar(self, value=__main__.SILENCE_TIMEOUT)
-        self.max_recording_time = customtkinter.StringVar(self, value=__main__.MAX_RECORDING_TIME)
-        self.input_device_name = customtkinter.StringVar(self, value=__main__.in_dev_name)
-        self.output_device_name = customtkinter.StringVar(self, value=__main__.out_dev_name)
+        self.rms_threshold = customtkinter.StringVar(self, value=opts.THRESHOLD)
+        self.silence_timeout = customtkinter.StringVar(self, value=opts.SILENCE_TIMEOUT)
+        self.max_recording_time = customtkinter.StringVar(self, value=opts.MAX_RECORDING_TIME)
+        self.input_device_name = customtkinter.StringVar(self, value=opts.in_dev_name)
+        self.output_device_name = customtkinter.StringVar(self, value=opts.out_dev_name)
 
         row_id = 1
 
@@ -250,11 +255,11 @@ class AudioStuffFrame(customtkinter.CTkFrame):
 
     def _update_audio_page(self, event=None):
         try:
-            __main__.THRESHOLD = int(self.rms_threshold.get())
-            __main__.SILENCE_TIMEOUT = float(self.silence_timeout.get())
-            __main__.MAX_RECORDING_TIME = float(self.max_recording_time.get())
-            __main__.in_dev_name = self.input_device_name.get()
-            __main__.out_dev_name = self.output_device_name.get()
+            opts.THRESHOLD = int(self.rms_threshold.get())
+            opts.SILENCE_TIMEOUT = float(self.silence_timeout.get())
+            opts.MAX_RECORDING_TIME = float(self.max_recording_time.get())
+            opts.in_dev_name = self.input_device_name.get()
+            opts.out_dev_name = self.output_device_name.get()
         except ValueError as e:
             print(f"Bad value input to field: {e}")
         except Exception as e:
@@ -284,7 +289,7 @@ class KeyboardControlFrame(customtkinter.CTkFrame):
 
         vcmd = (self.register(self._validate))
         
-        self.key_press_window_var = customtkinter.DoubleVar(self, value=__main__.key_press_window)
+        self.key_press_window_var = customtkinter.DoubleVar(self, value=opts.key_press_window)
 
         row_id = 1
 
@@ -301,7 +306,7 @@ class KeyboardControlFrame(customtkinter.CTkFrame):
             field.bind("<Return>", self._update_keyboard_page)
         
     def _update_keyboard_page(self, event=None):
-        __main__.key_press_window = float(self.key_press_window_var.get())
+        opts.key_press_window = float(self.key_press_window_var.get())
 
     def _validate(self, P):
         if P == "":
@@ -325,7 +330,7 @@ class GCloudOptionsFrame(customtkinter.CTkFrame):
             self, text=self.title, fg_color="gray30", corner_radius=6)
         self.title.grid(row=0, column=0, columnspan=3, padx=10, pady=(10,0), sticky="ew")
         
-        self.gcloud_language_code_var = customtkinter.StringVar(self, value=__main__.gcloud_language_code)
+        self.gcloud_language_code_var = customtkinter.StringVar(self, value=opts.gcloud_language_code)
         self.gcloud_voice_name_var = customtkinter.StringVar(self, value="Standard-F")
 
         row_id = 1
@@ -351,8 +356,8 @@ class GCloudOptionsFrame(customtkinter.CTkFrame):
             field.bind("<Return>", self._update_gcloud)
 
     def _update_gcloud(self, event=None):
-        __main__.gcloud_language_code = self.gcloud_language_code_var.get()
-        __main__.gcloud_voice_name = f'{self.gcloud_language_code_var.get()}-{self.gcloud_voice_name_var.get()}'
+        opts.gcloud_language_code = self.gcloud_language_code_var.get()
+        opts.gcloud_voice_name = f'{self.gcloud_language_code_var.get()}-{self.gcloud_voice_name_var.get()}'
 
 
 class App(customtkinter.CTk):
@@ -396,7 +401,7 @@ class App(customtkinter.CTk):
     #     print(checked_boxes)
 
     def on_close(self):
-        __main__.handle_command("shutdown")
+        main.handle_command("shutdown")
         self.destroy()
 
 
