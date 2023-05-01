@@ -1,15 +1,30 @@
 # VRChat AI Assistant
 
 [OpenAI](https://openai.com/) [GPT-4](https://openai.com/product/gpt-4) powered [AI Assistant](https://en.wikipedia.org/wiki/Virtual_assistant) that integrates with [VRChat](https://hello.vrchat.com/) using [OSC](https://docs.vrchat.com/docs/osc-overview)
-This program is currently in an "it works on my machine" state, and will most likely not work on yours without a ton of tinkering.
+This program is currently in an ["it works on my machine"](https://i.redd.it/6u77tkmyaomz.jpg) state, and will most likely not work on yours without a ton of tinkering.
 For example, it relies on [VB-Audio VoiceMeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm) to play audio over the microphone.
 Either way, I'm uploading this privately just to have it up here.
 
 ## Usage
 
+Run either `start_assistant.ps1` or `.bat`, which will automatically activate the virtual environment and start the program. If you for whatever reason are not using a virtual environment, just run `python assistant.py`.
+
 The program will start listening when it detects either the parameters `ChatGPT` or `ChatGPT_PB` get triggered on your avatar. For example, you could trigger it either from the Action Menu, or using a Contact Sender/Receiver pair. Alternatively, double-tap the Right Control key to invoke it manually. Voice gets transcribed to text with [Faster Whisper](https://github.com/guillaumekln/faster-whisper/), which is forwarded to OpenAI, and the response is read out with [Google Cloud TTS](https://cloud.google.com/text-to-speech/) or optionally one of [11.ai](https://beta.elevenlabs.io/) voice synthesis, [Google Translate](https://translate.google.com/), or [Windows](https://www.microsoft.com/en-ca/windows) [Default TTS](https://en.wikipedia.org/wiki/Microsoft_text-to-speech_voices). The response text is also fed into the VRChat Chatbox.
 
-System commands are triggerable by saying "System" and the name of the command, which will bypass sending it to OpenAI.
+System commands are triggerable by saying "System" and the name of the command, which will also bypass sending it to OpenAI.
+
+## Installation
+
+Activate a virtual environment in the `.\venv` folder using `python -m venv venv`. This can be skipped, but is recommended to not conflict with globally installed packages.
+Install CUDA Toolkit and cuDNN and add their respective `\bin` folders to your PATH if you plan to use the GPU.
+Install the required Python packages listed below using pip.
+With GPU support, you *may* need to install the latest nightly version of [PyTorch](https://pytorch.org/get-started/locally/), or uninstall and re-install if you have an old version that doesn't work and/or wasn't compiled with CUDA support.
+An example command for installing PyTorch nightly on Windows using pip with CUDA 11.8 support is as follows:
+
+```batch
+pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu118
+
+```
 
 ## Requirements
 
