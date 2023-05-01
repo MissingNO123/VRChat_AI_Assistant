@@ -15,6 +15,8 @@ System commands are triggerable by saying "System" and the name of the command, 
 
 ## Installation
 
+Copy `.env.example` to `.env`, get your API keys from OpenAI and from ElevenLabs, and put them in the file. Get your Google Cloud Authentication file and put it in the project directory, then add the path to it in `.env`.
+
 Activate a virtual environment in the `.\venv` folder using `python -m venv venv`. This can be skipped, but is recommended to not conflict with globally installed packages.
 Install CUDA Toolkit and cuDNN and add their respective `\bin` folders to your PATH if you plan to use the GPU.
 Install the required Python packages listed below using pip.
