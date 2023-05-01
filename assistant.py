@@ -26,41 +26,41 @@ import threading
 import wave
 # import whisper
 import uistuff
+import options as opts
 
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
 eleven = ElevenLabs(os.getenv('ELEVENLABS_API_KEY'))
 
 # OPTIONS ####################################################################################################################################
-verbosity = False
-chatbox_on = True
-parrot_mode = False
-whisper_prompt = "Hello, I am playing VRChat."
-whisper_model = "base.en"
-soundFeedback = True            # Play sound feedback when recording/stopped/misrecognized
-audio_trigger_enabled = False   # Trigger voice recording on volume threshold
-key_trigger_key = Key.ctrl_r    # What key to double press to trigger recording
-key_press_window = 0.400        # How fast should you double click the key to trigger voice recording
-gpt = "GPT-4"                   # GPT-3.5-Turbo-0301 | GPT-4
-max_tokens = 200                # Max tokens that openai will return
-max_conv_length = 10            # Max length of conversation buffer
-in_dev_name = "VoiceMeeter Aux Output"  # Input  (mic)
-out_dev_name = "VoiceMeeter Aux Input"  # Output (tts)
+# opts.verbosity = False
+# opts.chatbox = True
+opts.parrot_mode = False
+opts.whisper_prompt = "Hello, I am playing VRChat."
+opts.whisper_model = "base.en"
+opts.soundFeedback = True            # Play sound feedback when recording/stopped/misrecognized
+opts.audio_trigger_enabled = False   # Trigger voice recording on volume threshold
+opts.key_trigger_key = Key.ctrl_r    # What key to double press to trigger recording
+opts.key_press_window = 0.400        # How fast should you double click the key to trigger voice recording
+opts.gpt = "GPT-4"                   # GPT-3.5-Turbo-0301 | GPT-4
+opts.max_tokens = 200                # Max tokens that openai will return
+opts.max_conv_length = 10            # Max length of conversation buffer
+opts.in_dev_name = "VoiceMeeter Aux Output"  # Input  (mic)
+opts.out_dev_name = "VoiceMeeter Aux Input"  # Output (tts)
 
 # elevenVoice = 'Bella'                # Voice to use with 11.ai
-elevenVoice = 'rMQzVEcycGrNzwMhDeq8'   # The Missile Guidance System
+opts.elevenVoice = 'rMQzVEcycGrNzwMhDeq8'   # The Missile Guidance System
 
-gcloud_language_code = 'en-US'
-gcloud_voice_name = f'{gcloud_language_code}-Standard-F'
+opts.gcloud_language_code = 'en-US'
+opts.gcloud_voice_name = f'{opts.gcloud_language_code}-Standard-F'
 
-THRESHOLD = 1024            # adjust this to set the minimum volume threshold to start/stop recording
+opts.THRESHOLD = 1024            # adjust this to set the minimum volume threshold to start/stop recording
+opts.MAX_RECORDING_TIME = 30     # maximum recording time in seconds
+opts.SILENCE_TIMEOUT = 2         # timeout in seconds for detecting silence
+opts.OUTPUT_FILENAME = 'recording.wav'
 CHUNK_SIZE = 1024           # number of frames read at a time
 FORMAT = pyaudio.paInt16    # PCM format (int16)
 RATE = 48000                # sample rate in Hz
-MAX_RECORDING_TIME = 30     # maximum recording time in seconds
-SILENCE_TIMEOUT = 2         # timeout in seconds for detecting silence
-OUTPUT_FILENAME = 'recording.wav'
-
 
 # System Prompts ##############################################################################################################################
 # VRChat AI Player System Prompt
@@ -89,7 +89,7 @@ recording = False
 speaking = False
 trigger = False
 panic = False
-silence_timeout = None
+silence_timeout_timer = None
 
 key_press_window_timeup = time.time()
 
@@ -143,7 +143,7 @@ class AudioFile:
 
 
 def verbose_print(text):
-    if (verbosity):
+    if opts.verbosity:
         print(text)
 
 
@@ -160,9 +160,9 @@ def play_sound_threaded(file):
     thread.start()
 
 
-def save_recorded_frames(frames, filename=OUTPUT_FILENAME):
+def save_recorded_frames(frames, filename=opts.OUTPUT_FILENAME):
     """ Saves recorded frames to a .wav file and sends it to whisper to transcribe it """
-    if (soundFeedback):
+    if opts.soundFeedback:
         play_sound_threaded(speech_off)
     wf = wave.open(filename, 'wb')
     wf.setnchannels(2)
@@ -184,12 +184,12 @@ def old_whisper_transcribe():
     start_time = time.time()
 
     # load the audio
-    audio = whisper.load_audio(OUTPUT_FILENAME)
+    audio = whisper.load_audio(opts.OUTPUT_FILENAME)
     audio = whisper.pad_or_trim(audio)
     mel = whisper.log_mel_spectrogram(audio).to(model.device)
 
     # decode the audio
-    options = whisper.DecodingOptions(prompt=whisper_prompt, language='en')
+    options = whisper.DecodingOptions(prompt=opts.whisper_prompt, language='en')
     result = whisper.decode(model, mel, options)
     end_time = time.time()
     verbose_print(f"--Transcription took: {end_time - start_time:.3f}s, U: {result.no_speech_prob*100:.1f}%")
@@ -200,7 +200,7 @@ def old_whisper_transcribe():
     # if not speech, dont send to cgpt
     if result.no_speech_prob > 0.5:
         vrc_chatbox('⚠ [unintelligible]')
-        if (soundFeedback): play_sound_threaded(speech_mis)
+        if opts.soundFeedback: play_sound_threaded(speech_mis)
         verbose_print(f"U: {result.no_speech_prob*100:.1f}%")
         tts('I didn\'t understand that!', 'en')
         vrc_set_parameter('VoiceRec_End', True)
@@ -225,14 +225,14 @@ def whisper_transcribe():
 
         # Initialize transcription object on the recording
         segments, info = model.transcribe(
-            "recording.wav", beam_size=5, initial_prompt=whisper_prompt, no_speech_threshold=0.4, log_prob_threshold=0.8)
+            "recording.wav", beam_size=5, initial_prompt=opts.whisper_prompt, no_speech_threshold=0.4, log_prob_threshold=0.8)
 
         verbose_print(f'lang: {info.language}, {info.language_probability * 100:.1f}%')
 
         # if not speech, dont bother processing anything  
-        if info.language_probability < 0.8 or info.duration <= (SILENCE_TIMEOUT + 0.3):
+        if info.language_probability < 0.8 or info.duration <= (opts.SILENCE_TIMEOUT + 0.3):
             vrc_chatbox('⚠ [unintelligible]')
-            if (soundFeedback):
+            if opts.soundFeedback:
                 play_sound_threaded(speech_mis)
             play_sound('./prebaked_tts/Ididntunderstandthat.wav')
             vrc_set_parameter('VoiceRec_End', True)
@@ -264,8 +264,8 @@ def whisper_transcribe():
         return
 
     # Repeat input if parrot mode is on 
-    if parrot_mode:
-        if chatbox_on and len(text) > 140:
+    if opts.parrot_mode:
+        if opts.chatbox and len(text) > 140:
             cut_up_text(f'{text}')
         else:
             vrc_chatbox(f'{text}')
@@ -301,7 +301,7 @@ def filter_for_tts(string):
 
 def chatgpt_req(text):
     """ Sends text to OpenAI, gets the response, and puts it into the chatbox """
-    if len(messageArr) > max_conv_length:  # Trim down chat buffer if it gets too long
+    if len(messageArr) > opts.max_conv_length:  # Trim down chat buffer if it gets too long
         messageArr.pop(0)
     # Add user's message to the chat buffer
     messageArr.append({"role": "user", "content": text})
@@ -309,16 +309,16 @@ def chatgpt_req(text):
     systemPromptObject = [{"role": "system", "content":
                            systemPrompt
                            + f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M:%S %p")} Eastern Standard Time.'
-                           + f' You are using {gpt} from OpenAI.'}]
+                           + f' You are using {opts.gpt} from OpenAI.'}]
     # create object with system prompt and chat history to send to OpenAI for generation
     messagePlusSystem = systemPromptObject + messageArr
     err = None
     try:
         start_time = time.time()
         completion = openai.ChatCompletion.create(
-            model=gpt.lower(),
+            model=opts.gpt.lower(),
             messages=messagePlusSystem,
-            max_tokens=max_tokens,
+            max_tokens=opts.max_tokens,
             temperature=0.5,
             frequency_penalty=0.2,
             presence_penalty=0.5,
@@ -334,7 +334,7 @@ def chatgpt_req(text):
         # tts(filter_for_tts(result), 'en')
         # tts(result, 'en')
         # vrc_chatbox('🛰 Getting TTS from 11.ai...')
-        if chatbox_on and len(result) > 140:
+        if opts.chatbox and len(result) > 140:
             cut_up_text(f'💬{result}')
         else:
             vrc_chatbox(f'💬{result}')
@@ -440,7 +440,7 @@ def tts_eleven(text):
     filename = 'tts'
     verbose_print('--Getting TTS from 11.ai...')
     filtered_text = filter_for_tts(text)
-    voice = eleven.voices[elevenVoice]
+    voice = eleven.voices[opts.elevenVoice]
     audio = voice.generate(filtered_text)
     audio.save(filename)
     to_wav(f'{filename}.mp3')
@@ -452,7 +452,7 @@ def eleven_synthesize_text(text, filename):
     # filename = filename.split('.')[0]
     verbose_print(f'--Synthesizing {text} from 11.ai...')
     filtered_text = filter_for_tts(text)
-    voice = eleven.voices[elevenVoice]
+    voice = eleven.voices[opts.elevenVoice]
     audio = voice.generate(filtered_text)
     audio.save(filename)
     to_wav(f'{filename}.mp3')
@@ -465,8 +465,8 @@ def gcloud_synthesize_text(text, filename='tts.wav'):
     client = texttospeech.TextToSpeechClient()
     input_text = texttospeech.SynthesisInput(text=filtered_text)
     voice = texttospeech.VoiceSelectionParams(
-        language_code=gcloud_language_code,
-        name=gcloud_voice_name,
+        language_code=opts.gcloud_language_code,
+        name=opts.gcloud_voice_name,
         ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
     )
     audio_config = texttospeech.AudioConfig(
@@ -528,13 +528,8 @@ def clip_audio_end(filename, trim=0.400):
 
 def handle_command(command):
     """ Handle voice commands """
-    global chatbox_on
-    global soundFeedback
     global messageArr
-    global verbosity
-    global gpt
-    global parrot_mode
-    global audio_trigger_enabled
+
     match command:
         case 'reset':
             messageArr = []
@@ -543,24 +538,24 @@ def handle_command(command):
             play_sound('./prebaked_tts/Clearedmessagebuffer.wav')
 
         case 'chatbox':
-            chatbox_on = not chatbox_on
-            print(f'$ Chatbox set to {chatbox_on}')
+            opts.chatbox = not opts.chatbox
+            print(f'$ Chatbox set to {opts.chatbox}')
             play_sound(
-                f'./prebaked_tts/Chatboxesarenow{"on" if chatbox_on else "off"}.wav')
+                f'./prebaked_tts/Chatboxesarenow{"on" if opts.chatbox else "off"}.wav')
 
         case 'sound':
-            soundFeedback = not soundFeedback
-            print(f'$ Sound feedback set to {soundFeedback}')
-            vrc_chatbox(('🔊' if soundFeedback else '🔈') +
-                        ' Sound feedback set to ' + ('on' if soundFeedback else 'off'))
+            opts.soundFeedback = not opts.soundFeedback
+            print(f'$ Sound feedback set to {opts.soundFeedback}')
+            vrc_chatbox(('🔊' if opts.soundFeedback else '🔈') +
+                        ' Sound feedback set to ' + ('on' if opts.soundFeedback else 'off'))
             play_sound(
-                f'./prebaked_tts/Soundfeedbackisnow{"on" if soundFeedback else "off"}.wav')
+                f'./prebaked_tts/Soundfeedbackisnow{"on" if opts.soundFeedback else "off"}.wav')
 
         case 'audiotrigger':
-            audio_trigger_enabled = not audio_trigger_enabled
-            print(f'$ Audio Trigger set to {audio_trigger_enabled}')
-            vrc_chatbox(('🔊' if audio_trigger_enabled else '🔈') +
-                        ' Audio Trigger set to ' + ('on' if audio_trigger_enabled else 'off'))
+            opts.audio_trigger_enabled = not opts.audio_trigger_enabled
+            print(f'$ Audio Trigger set to {opts.audio_trigger_enabled}')
+            vrc_chatbox(('🔊' if opts.audio_trigger_enabled else '🔈') +
+                        ' Audio Trigger set to ' + ('on' if opts.audio_trigger_enabled else 'off'))
             # play_sound(f'./prebaked_tts/Audiotriggerisnow{"on" if audio_trigger_enabled else "off"}.wav')
 
         case 'messagelog':
@@ -569,12 +564,12 @@ def handle_command(command):
             play_sound('./prebaked_tts/DumpedmessagesCheckconsole.wav')
 
         case 'verbose':
-            verbosity = not verbosity
-            print(f'$ Verbose logging set to {verbosity}')
+            opts.verbosity = not opts.verbosity
+            print(f'$ Verbose logging set to {opts.verbosity}')
             vrc_chatbox('📜 Verbose logging set to ' +
-                        ('on' if verbosity else 'off'))
+                        ('on' if opts.verbosity else 'off'))
             play_sound(
-                f'./prebaked_tts/Verboseloggingisnow{"on" if verbosity else "off"}.wav')
+                f'./prebaked_tts/Verboseloggingisnow{"on" if opts.verbosity else "off"}.wav')
 
         case 'shutdown':
             print('$ Shutting down...')
@@ -583,24 +578,24 @@ def handle_command(command):
             sys.exit(0)
 
         case 'gpt3':
-            gpt = 'GPT-3.5-Turbo'
-            print(f'$ Now using {gpt}')
+            opts.gpt = 'GPT-3.5-Turbo'
+            print(f'$ Now using {opts.gpt}')
             vrc_chatbox('Now using GPT-3.5-Turbo')
             play_sound('./prebaked_tts/NowusingGPT35Turbo.wav')
 
         case 'gpt4':
-            gpt = 'GPT-4'
-            print(f'$ Now using {gpt}')
+            opts.gpt = 'GPT-4'
+            print(f'$ Now using {opts.gpt}')
             vrc_chatbox('Now using GPT-4')
             play_sound('./prebaked_tts/NowusingGPT4.wav')
 
         case 'parrotmode':
-            parrot_mode = not parrot_mode
-            print(f'$ Parrot mode set to {parrot_mode}')
+            opts.parrot_mode = not opts.parrot_mode
+            print(f'$ Parrot mode set to {opts.parrot_mode}')
             vrc_chatbox(
-                f'🦜 Parrot mode is now {"on" if parrot_mode else "off"}')
+                f'🦜 Parrot mode is now {"on" if opts.parrot_mode else "off"}')
             play_sound(
-                f'./prebaked_tts/Parrotmodeisnow{"on" if parrot_mode else "off"}.wav')
+                f'./prebaked_tts/Parrotmodeisnow{"on" if opts.parrot_mode else "off"}.wav')
 
         case 'thesenutsinyourmouth':
             vrc_chatbox('💬 Do you like Imagine Dragons?')
@@ -631,7 +626,7 @@ def parameter_handler(address, *args):
 
 def vrc_chatbox(message):
     """ Send a message to the VRC chatbox if enabled """
-    if (chatbox_on):
+    if opts.chatbox:
         vrc_osc_client.send_message("/chatbox/input", [message, True, False])
 
 
@@ -646,10 +641,10 @@ def check_doublepress_key(key):
     global key_press_window_timeup
     global trigger
     global panic
-    if key == key_trigger_key:
+    if key == opts.key_trigger_key:
         if speaking: panic = True
         if time.time() > key_press_window_timeup:
-            key_press_window_timeup = time.time() + key_press_window
+            key_press_window_timeup = time.time() + opts.key_press_window
         else:
             if (not recording) and (not speaking):
                 trigger = True
@@ -663,7 +658,7 @@ def load_whisper():
         vrc_chatbox('🔄 Loading Voice Recognition...')
         model = None
         start_time = time.time()
-        model = WhisperModel(whisper_model, device='cuda', compute_type="int8") # FasterWhisper
+        model = WhisperModel(opts.whisper_model, device='cuda', compute_type="int8") # FasterWhisper
         end_time = time.time()
         verbose_print(f'--Whisper loaded in {end_time - start_time:.3f}s')
         vrc_chatbox('✔️ Voice Recognition Loaded')
@@ -680,12 +675,12 @@ def init_audio():
     for i in range(numdevices):
         info = pyAudio.get_device_info_by_host_api_device_index(0, i)
         if (info.get('maxInputChannels')) > 0:
-            if info.get('name').startswith(in_dev_name):
+            if info.get('name').startswith(opts.in_dev_name):
                 verbose_print("~Found Input Device")
                 verbose_print( info.get('name') )
                 vb_out = i
         if (info.get('maxOutputChannels')) > 0: 
-            if info.get('name').startswith(out_dev_name):
+            if info.get('name').startswith(opts.out_dev_name):
                 verbose_print("~Found Output Device")
                 verbose_print( info.get('name') )
                 vb_in = i
@@ -702,16 +697,16 @@ def init_audio():
 
 
 def receiveCheckboxes(checkboxes):
-    global verbosity
-    global chatbox_on 
-    global parrot_mode 
-    global soundFeedback
-    global audio_trigger_enabled
-    verbosity = checkboxes[0]
-    chatbox_on = checkboxes[1]
-    parrot_mode = checkboxes[2]
-    soundFeedback = checkboxes[3]
-    audio_trigger_enabled = checkboxes[4]
+    # global opts.verbosity
+    # global opts.chatbox 
+    # global opts.parrot_mode 
+    # global opts.soundFeedback
+    # global opts.audio_trigger_enabled
+    opts.verbosity = checkboxes[0]
+    opts.chatbox = checkboxes[1]
+    opts.parrot_mode = checkboxes[2]
+    opts.soundFeedback = checkboxes[3]
+    opts.audio_trigger_enabled = checkboxes[4]
 
 
 # Program Setup #################################################################################################################################
@@ -747,7 +742,7 @@ def loop():
     global lastFrame
     global recording
     global trigger
-    global silence_timeout
+    global silence_timeout_timer
     global panic
 
     global LOOP
@@ -767,8 +762,8 @@ def loop():
             # calculate root mean square of audio data
             rms = audioop.rms(data, 2)
 
-            if (audio_trigger_enabled):
-                if (not recording and rms > THRESHOLD):
+            if opts.audio_trigger_enabled:
+                if (not recording and rms > opts.THRESHOLD):
                     trigger = True
 
             # Start recording if sound goes above threshold or parameter is triggered
@@ -781,13 +776,13 @@ def loop():
                 verbose_print("~Recording...")
                 recording = True
                 # set timeout to now + SILENCE_TIMEOUT seconds
-                silence_timeout = time.time() + SILENCE_TIMEOUT
-                if (soundFeedback):
+                silence_timeout_timer = time.time() + opts.SILENCE_TIMEOUT
+                if opts.soundFeedback:
                     play_sound_threaded(speech_on)
             elif recording:  # If already recording, continue appending frames
                 frames.append(data)
-                if rms < THRESHOLD:
-                    if time.time() > silence_timeout:  # if silent for longer than SILENCE_TIMEOUT, save
+                if rms < opts.THRESHOLD:
+                    if time.time() > silence_timeout_timer:  # if silent for longer than SILENCE_TIMEOUT, save
                         verbose_print("~Saving (silence)...")
                         recording = False
                         trigger = False
@@ -796,10 +791,10 @@ def loop():
                         panic = False
                 else:
                     # set timeout to now + SILENCE_TIMEOUT seconds
-                    silence_timeout = time.time() + SILENCE_TIMEOUT
+                    silence_timeout_timer = time.time() + opts.SILENCE_TIMEOUT
 
                 # if recording for longer than MAX_RECORDING_TIME, save
-                if len(frames) * CHUNK_SIZE >= MAX_RECORDING_TIME * RATE:
+                if len(frames) * CHUNK_SIZE >= opts.MAX_RECORDING_TIME * RATE:
                     verbose_print("~Saving (length)...")
                     recording = False
                     trigger = False
