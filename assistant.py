@@ -1,12 +1,13 @@
 # Copyright (C) MissingNO123 17 Mar 2023
 
+from io import BytesIO
 import sys
 import time
-full_start_time = time.time()
+full_start_time = time.perf_counter()
 import audioop
 from datetime import datetime
 from dotenv import load_dotenv
-from elevenlabs import ElevenLabs
+# from elevenlabs import ElevenLabs
 from faster_whisper import WhisperModel
 import ffmpeg
 from google.cloud import texttospeech  # Cloud TTS
@@ -14,7 +15,7 @@ from gtts import gTTS
 import openai
 import os
 import pyaudio
-from pynput.keyboard import Key, Listener
+from pynput.keyboard import Listener
 from pythonosc import udp_client
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import ThreadingOSCUDPServer
@@ -25,60 +26,21 @@ import threading
 # import torch
 import wave
 # import whisper
-import uistuff
 import options as opts
+import texttospeech as ttsutils
+import uistuff
 
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
-eleven = ElevenLabs(os.getenv('ELEVENLABS_API_KEY'))
+# eleven = ElevenLabs(os.getenv('ELEVENLABS_API_KEY'))
 
 # OPTIONS ####################################################################################################################################
-# opts.verbosity = False
-# opts.chatbox = True
-# opts.parrot_mode = False
-# opts.whisper_prompt = "Hello, I am playing VRChat."
-# opts.whisper_model = "base.en"
-# opts.soundFeedback = True            # Play sound feedback when recording/stopped/misrecognized
-# opts.audio_trigger_enabled = False   # Trigger voice recording on volume threshold
-# opts.key_trigger_key = Key.ctrl_r    # What key to double press to trigger recording
-# opts.key_press_window = 0.400        # How fast should you double click the key to trigger voice recording
-# opts.gpt = "GPT-4"                   # GPT-3.5-Turbo-0301 | GPT-4
-# opts.max_tokens = 200                # Max tokens that openai will return
-# opts.max_conv_length = 10            # Max length of conversation buffer
-# opts.in_dev_name = "VoiceMeeter Aux Output"  # Input  (mic)
-# opts.out_dev_name = "VoiceMeeter Aux Input"  # Output (tts)
-
-# elevenVoice = 'Bella'                # Voice to use with 11.ai
-# opts.elevenVoice = 'rMQzVEcycGrNzwMhDeq8'   # The Missile Guidance System
-
-# opts.gcloud_language_code = 'en-US'
-# opts.gcloud_voice_name = f'{opts.gcloud_language_code}-Standard-F'
-
-# opts.THRESHOLD = 1024            # adjust this to set the minimum volume threshold to start/stop recording
-# opts.MAX_RECORDING_TIME = 30     # maximum recording time in seconds
-# opts.SILENCE_TIMEOUT = 2         # timeout in seconds for detecting silence
-# opts.OUTPUT_FILENAME = 'recording.wav'
 CHUNK_SIZE = 1024           # number of frames read at a time
 FORMAT = pyaudio.paInt16    # PCM format (int16)
 RATE = 48000                # sample rate in Hz
 
-# System Prompts ##############################################################################################################################
-# VRChat AI Player System Prompt
-# systemPrompt = "You are an Artificial Intelligence in the VR social platform VRChat. Inside the game you take on the appearance of a player that other players can talk to. You can make conversation with people and answer their questions. If someone insults you, you are to dismiss them. Only reply in one sentence if possible."
-
-# Assistant System Prompt
-systemPrompt = "You are an AI powered voice activated assistant. You are talking to a user. The user will talk directly to you, and you are able to reply back using text to speech. You can answer the user's questions to the best of your knowlege, but if you are unsure about something you must tell them you do not know enough about the subject. You reply in only one sentence if possible."
-
-# Roomba System Prompt
-#systemPrompt = "You are an AI powered robot vacuum. You are currently cleaning a user's house. You are able to vacuum their floors, and you are also able to reply to the user using text to speech. You can answer the user's questions to the best of your knowlege, but you must focus on the important task at hand to vacuum floors. You reply in only one sentence if possible."
-
-# Insult system prompt
-# systemPrompt = "You are an AI powered voice activated insult machine named BratGPT. The user will talk directly to you, and you insult them no matter what they say. You only ever insult them, and do not say anything else. You talk like a catgirl with a hostile and condescending demeanor. You reply in only one sentence if possible."
-
-
 # Variables ###################################################################################################################################
 model = None    # Whisper model object
-messageArr = [] # List of messages sent back and forth between ChatGPT / User, initialized with example messages
 
 vb_out = None
 vb_in = None
@@ -93,6 +55,8 @@ silence_timeout_timer = None
 
 key_press_window_timeup = time.time()
 
+tts_engine = ttsutils.GoogleCloudTTS()
+
 # Constants
 pyAudio = pyaudio.PyAudio()
 
@@ -104,7 +68,7 @@ ip = "127.0.0.1"  # IP and Ports for VRChat OSC
 inPort = 9000
 outPort = 9001
 
-LOOP = True
+opts.LOOP = True
 
 whisper_lock = threading.Lock()
 
@@ -160,38 +124,56 @@ def play_sound_threaded(file):
     thread.start()
 
 
-def save_recorded_frames(frames, filename=opts.OUTPUT_FILENAME):
+def save_recorded_frames(frames):
     """ Saves recorded frames to a .wav file and sends it to whisper to transcribe it """
     if opts.soundFeedback:
         play_sound_threaded(speech_off)
-    wf = wave.open(filename, 'wb')
+    recording = BytesIO()
+    wf = wave.open(recording, 'wb')
     wf.setnchannels(2)
     wf.setsampwidth(pyAudio.get_sample_size(FORMAT))
     wf.setframerate(RATE)
     wf.writeframes(b''.join(frames))
     wf.close()
-    verbose_print("~Recording saved")
-    whisper_transcribe()
-    verbose_print("~Waiting for sound...")
+    recording.seek(0)
+    whisper_transcribe(recording)
 
 
-def old_whisper_transcribe():
+def ffmpeg_for_whisper(file):
+    import numpy as np
+    start_time = time.perf_counter()
+    file.seek(0)
+    try:
+        out, _ = (
+            ffmpeg.input('pipe:', loglevel='quiet', threads=0)
+            .output("-", format="s16le", acodec="pcm_s16le", ac=1, ar=16000)
+            .run(cmd=["ffmpeg", "-nostdin"], input=file.read(), capture_stdout=True, capture_stderr=True)
+        )
+    except ffmpeg.Error as e:
+        raise RuntimeError(f"Failed to load audio: {e.stderr.decode()}") from e
+    data = np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
+    end_time = time.perf_counter()
+    verbose_print(f"--FFMPEG for Whisper took: {end_time - start_time:.3f}s")
+    return data
+
+
+def openai_whisper_transcribe(recording):
     """ Transcribes audio in .wav file to text """
     import whisper
+    
     if model is None: return
     vrc_chatbox('✍️ Transcribing...')
     verbose_print('~Transcribing...')
-    start_time = time.time()
-
-    # load the audio
-    audio = whisper.load_audio(opts.OUTPUT_FILENAME)
+    start_time = time.perf_counter()
+    
+    audio = ffmpeg_for_whisper(recording)
     audio = whisper.pad_or_trim(audio)
     mel = whisper.log_mel_spectrogram(audio).to(model.device)
 
     # decode the audio
     options = whisper.DecodingOptions(prompt=opts.whisper_prompt, language='en')
     result = whisper.decode(model, mel, options)
-    end_time = time.time()
+    end_time = time.perf_counter()
     verbose_print(f"--Transcription took: {end_time - start_time:.3f}s, U: {result.no_speech_prob*100:.1f}%")
 
     # print the recognized text
@@ -213,7 +195,7 @@ def old_whisper_transcribe():
         chatgpt_req(result.text)
 
 
-def whisper_transcribe():
+def whisper_transcribe(recording):
     """ Transcribes audio in .wav file to text using Faster Whisper """
     if model is None:
         return
@@ -221,11 +203,11 @@ def whisper_transcribe():
     verbose_print('~Transcribing...')
 
     with whisper_lock:
-        start_time = time.time()
-
+        start_time = time.perf_counter()
+        audio = ffmpeg_for_whisper(recording)
         # Initialize transcription object on the recording
         segments, info = model.transcribe(
-            "recording.wav", beam_size=5, initial_prompt=opts.whisper_prompt, no_speech_threshold=0.4, log_prob_threshold=0.8)
+            audio, beam_size=5, initial_prompt=opts.whisper_prompt, no_speech_threshold=0.4, log_prob_threshold=0.8)
 
         verbose_print(f'lang: {info.language}, {info.language_probability * 100:.1f}%')
 
@@ -238,7 +220,7 @@ def whisper_transcribe():
             vrc_set_parameter('VoiceRec_End', True)
             vrc_set_parameter('CGPT_Result', True)
             vrc_set_parameter('CGPT_End', True)
-            end_time = time.time()
+            end_time = time.perf_counter()
             verbose_print(f"--Transcription failed and took: {end_time - start_time:.3f}s")
             return
 
@@ -248,8 +230,15 @@ def whisper_transcribe():
             text += segment.text
         text = text.strip()
 
-        end_time = time.time()
+        end_time = time.perf_counter()
     verbose_print(f"--Transcription took: {end_time - start_time:.3f}s")
+
+    if text == "":
+        print ("\n>User: <Nothing was recognized?>")
+        vrc_set_parameter('VoiceRec_End', True)
+        vrc_set_parameter('CGPT_Result', True)
+        vrc_set_parameter('CGPT_End', True)
+        return
 
     # print the recognized text
     print(f"\n>User: {text}")
@@ -280,44 +269,25 @@ def whisper_transcribe():
         chatgpt_req(text)
 
 
-def filter_for_tts(string):
-    """ Makes words in input string pronuncable by TTS """
-    replacements = {
-        '`': '',
-        '💬': '',
-        '~': '',
-        '*': '',
-        'missingno': 'missing no',
-        'missingo123': 'missing no one two three',
-        'nya': 'nia',
-        'nyaa': 'nia',
-        'vrchat': 'VR Chat'
-    }
-    for word, replacement in replacements.items():
-        word_pattern = re.escape(word)
-        string = re.sub(word_pattern, replacement, string, flags=re.IGNORECASE)
-    return string
-
-
 def chatgpt_req(text):
     """ Sends text to OpenAI, gets the response, and puts it into the chatbox """
-    if len(messageArr) > opts.max_conv_length:  # Trim down chat buffer if it gets too long
-        messageArr.pop(0)
+    if len(opts.message_array) > opts.max_conv_length:  # Trim down chat buffer if it gets too long
+        opts.message_array.pop(0)
     # Add user's message to the chat buffer
-    messageArr.append({"role": "user", "content": text})
+    opts.message_array.append({"role": "user", "content": text})
     # Init system prompt with date and add it persistently to top of chat buffer
-    systemPromptObject = [{"role": "system", "content":
-                           systemPrompt
+    system_prompt_object = [{"role": "system", "content":
+                           opts.system_prompt
                            + f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M:%S %p")} Eastern Standard Time.'
                            + f' You are using {opts.gpt} from OpenAI.'}]
     # create object with system prompt and chat history to send to OpenAI for generation
-    messagePlusSystem = systemPromptObject + messageArr
+    message_plus_system = system_prompt_object + opts.message_array
     err = None
     try:
-        start_time = time.time()
+        start_time = time.perf_counter()
         completion = openai.ChatCompletion.create(
             model=opts.gpt.lower(),
-            messages=messagePlusSystem,
+            messages=message_plus_system,
             max_tokens=opts.max_tokens,
             temperature=0.5,
             frequency_penalty=0.2,
@@ -326,12 +296,12 @@ def chatgpt_req(text):
             '1058': 1, '18': 1, '299': 5, '3972': 5}
             # 'As', 'as', ' an', 'AI', ' AI', ' language', ' model', 'model', 'sorry', ' sorry', ' :', '3', ' n', 'ya'
             )
-        end_time = time.time()
+        end_time = time.perf_counter()
         verbose_print(f'--OpenAI API took {end_time - start_time:.3f}s')
         result = completion.choices[0].message.content
-        messageArr.append({"role": "assistant", "content": result})
+        opts.message_array.append({"role": "assistant", "content": result})
         print(f"\n>ChatGPT: {result}")
-        # tts(filter_for_tts(result), 'en')
+        # tts(ttsutils.filter(result), 'en')
         # tts(result, 'en')
         # vrc_chatbox('🛰 Getting TTS from 11.ai...')
         if opts.chatbox and len(result) > 140:
@@ -370,44 +340,43 @@ def cut_up_text(text):
         segments = [text[i:i+143] for i in range(0, len(text), 143)]
     i = 0
     list = []
-    for segment in segments:
-        synthesize_text(segment, f'tts_segments/segment{i}.wav')
+    for i, segment in enumerate(segments):
+        audio = tts_engine.tts(text)
         if i is not len(segments) - 1:
-            clip_audio_end(f'tts_segments/segment{i}.wav')
-        else: 
-            shutil.copy(f'tts_segments/segment{i}.wav', f'tts_segments/segment{i}_trim.wav')
-        list.append(segment)
-        i += 1
+            clip_audio_end(audio)
+        list.append((segment, audio))
     # and then
-    i = 0
     speaking = True
-    for text in list:
+    for text, audio in list:
         vrc_chatbox(text)
-        play_sound(f'./tts_segments/segment{i}_trim.wav')
-        i += 1
+        play_sound(audio)
     speaking = False
-
 
 def tts(text):
     global speaking
+    global panic
     speaking = True
-    tts_google(text)
+    audioBytes = tts_engine.tts(text)
+    if audioBytes == None:
+        speaking = False
+        panic = True
+        return
+    play_sound(audioBytes)
     speaking = False
 
-
-def synthesize_text(text, filename):
-    # filename = filename[0:filename.rfind('.')]
-    # eleven_synthesize_text(text, filename)
-    gcloud_synthesize_text(text, filename)
+# def synthesize_text(text, filename):
+#     # filename = filename[0:filename.rfind('.')]
+#     # eleven_synthesize_text(text, filename)
+#     gcloud_synthesize_text(text, filename)
 
 
 def tts_gtrans(text, filename='tts.wav', language='en'):
     """ Returns speech from text using google API """
-    filtered_text = filter_for_tts(text)
-    start_time = time.time()
+    filtered_text = ttsutils.filter(text)
+    start_time = time.perf_counter()
     tts = gTTS(filtered_text, lang=language)
     tts.save('tts.mp3')
-    end_time = time.time()
+    end_time = time.perf_counter()
     verbose_print(f'--gTTS took {end_time - start_time:.3f}s')
     to_wav('tts.mp3', 1.3)
     play_sound('tts.wav')
@@ -419,7 +388,7 @@ def tts_windows(text, filename='tts.wav'):
     ttsEngine.setProperty('rate', 180)
     ttsVoices = ttsEngine.getProperty('voices')
     ttsEngine.setProperty('voice', ttsVoices[1].id)
-    filtered_text = filter_for_tts(text)
+    filtered_text = ttsutils.filter(text)
     ttsEngine.save_to_file(filtered_text, 'tts.wav')
     ttsEngine.runAndWait()
     # to_wav('tts.wav', 1.1)
@@ -427,41 +396,36 @@ def tts_windows(text, filename='tts.wav'):
 
 
 def tts_google(text, filename='tts.wav'):
-    """ Returns speech from text using Google Cloud API """
-    start_time = time.time()
-    gcloud_synthesize_text(text)
-    end_time = time.time()
-    verbose_print(f'--gcTTS took {end_time - start_time:.3f}s')
-    play_sound('tts.wav')
+    global panic
+    audioBytes = ttsutils.GoogleCloudTTS.tts(text)
+    if audioBytes == None:
+        panic = True
+        return
+    play_sound(audioBytes)
 
 
 def tts_eleven(text):
     """ Returns speech from text using Eleven Labs API """
-    filename = 'tts'
-    verbose_print('--Getting TTS from 11.ai...')
-    filtered_text = filter_for_tts(text)
-    voice = eleven.voices[opts.elevenVoice]
-    audio = voice.generate(filtered_text)
-    audio.save(filename)
-    to_wav(f'{filename}.mp3')
-    play_sound(f'{filename}.wav')
+    audioBytes = ttsutils.eleven.tts(text)
+    audioWav = to_wav_bytes(audioBytes)
+    play_sound(audioWav)
 
 
-def eleven_synthesize_text(text, filename):
-    """ Calls Eleven Labs API to synthesize speech from the input string of text and writes it to a wav file """
-    # filename = filename.split('.')[0]
-    verbose_print(f'--Synthesizing {text} from 11.ai...')
-    filtered_text = filter_for_tts(text)
-    voice = eleven.voices[opts.elevenVoice]
-    audio = voice.generate(filtered_text)
-    audio.save(filename)
-    to_wav(f'{filename}.mp3')
+# def eleven_synthesize_text(text, filename):
+#     """ Calls Eleven Labs API to synthesize speech from the input string of text and writes it to a wav file """
+#     # filename = filename.split('.')[0]
+#     verbose_print(f'--Synthesizing {text} from 11.ai...')
+#     filtered_text = ttsutils.filter(text)
+#     voice = eleven.voices[opts.elevenVoice]
+#     audio = voice.generate(filtered_text)
+#     audio.save(filename)
+#     to_wav(f'{filename}.mp3')
 
 
 def gcloud_synthesize_text(text, filename='tts.wav'):
     """ Calls Google Cloud API to synthesize speech from the input string of text and writes it to a wav file """
     global panic
-    filtered_text = filter_for_tts(text)
+    filtered_text = ttsutils.filter(text)
     client = texttospeech.TextToSpeechClient()
     input_text = texttospeech.SynthesisInput(text=filtered_text)
     voice = texttospeech.VoiceSelectionParams(
@@ -493,58 +457,137 @@ def to_wav(file, speed=1.0):
     name = file[0:file.rfind('.')]
     name = name + '.wav'
     try:
-        start_time = time.time()
+        start_time = time.perf_counter()
         input_stream = ffmpeg.input(file)
         audio = input_stream.audio.filter('atempo', speed)
         output_stream = audio.output(name, format='wav')
         ffmpeg.run(output_stream, cmd=[
                    "ffmpeg", "-nostdin"], capture_stdout=True, capture_stderr=True, overwrite_output=True)
-        end_time = time.time()
+        end_time = time.perf_counter()
         verbose_print(f'--ffmpeg took {end_time - start_time:.3f}s')
     except ffmpeg.Error as e:
         raise RuntimeError(f"Failed to convert audio: {e.stderr}") from e
-
-
-def clip_audio_end(filename, trim=0.400):
-    """ Trims the end of audio in a file """
-    name = filename[0:filename.rfind('.')]
-    name = name + '_trim.wav'
+    
+def to_wav_bytes(file, speed=1.0):
+    """Converts an .mp3 BytesIO object to a .wav BytesIO object and optionally speeds it up"""
     try:
-        start_time = time.time()
-        probe = ffmpeg.probe(filename)
-        duration = float(probe['format']['duration'])
-        if duration < 5.0: 
-            trim = 0.250
-        trimmed_length = duration - trim
-        input_stream = ffmpeg.input(filename, ss='0.030', t=trimmed_length)#, **audio_format_options)
-        audio = input_stream.audio
-        output_stream = audio.output(name, format='wav')
-        output_stream.run(quiet=True, overwrite_output=True)
-        end_time = time.time()
-        verbose_print(f'--ffmpeg clipping took {end_time - start_time:.3f}s')
+        start_time = time.perf_counter()
+        input_stream = ffmpeg.input('pipe:', format='mp3', loglevel='quiet', threads=0)
+        audio = input_stream.audio.filter('atempo', speed)
+        output_stream = audio.output('-', format='wav', loglevel='quiet')
+        stdout, stderr = ffmpeg.run(output_stream, input=file.read(), cmd=["ffmpeg", "-nostdin"], capture_stdout=True, capture_stderr=True)
+        end_time = time.perf_counter()
+        verbose_print(f'--ffmpeg took {end_time - start_time:.3f}s')
+        return BytesIO(stdout)
     except ffmpeg.Error as e:
-        raise RuntimeError(f"Failed to convert audio: {e.stderr}") from e
+        raise RuntimeError(f"Failed to convert audio: {e.stderr.decode()}") from e
+
+
+# def clip_audio_end(filename, trim=0.400):
+#     """ Trims the end of audio in a file """
+#     name = filename[0:filename.rfind('.')]
+#     name = name + '_trim.wav'
+#     try:
+#         start_time = time.perf_counter()
+#         probe = ffmpeg.probe(filename)
+#         duration = float(probe['format']['duration'])
+#         if duration < 5.0: 
+#             trim = 0.250
+#         trimmed_length = duration - trim
+#         input_stream = ffmpeg.input(filename, ss='0.030', t=trimmed_length)#, **audio_format_options)
+#         audio = input_stream.audio
+#         output_stream = audio.output(name, format='wav')
+#         output_stream.run(quiet=True, overwrite_output=True)
+#         end_time = time.perf_counter()
+#         verbose_print(f'--ffmpeg clipping took {end_time - start_time:.3f}s')
+#     except ffmpeg.Error as e:
+#         raise RuntimeError(f"Failed to convert audio: {e.stderr}") from e
+
+
+def detect_silence(wave_file):
+    """ Detects the duration of silence at the end of a wave file """
+    import struct
+    with wave.open(wave_file, 'rb') as wf:
+        channels = wf.getnchannels()
+        frame_rate = wf.getframerate()
+        n_frames = wf.getnframes()
+        duration = n_frames / frame_rate
+
+        # set the position to the end of the file
+        wf.setpos(n_frames - 1)
+
+        # read the last frame and convert it to integer values
+        last_frame = wf.readframes(1)
+        last_frame_values = struct.unpack("<h" * channels, last_frame)
+
+        # check if the last frame is silent
+        is_silent = all(abs(value) < 50 for value in last_frame_values)
+
+        if is_silent:
+            # if the last frame is silent, continue scanning backwards until a non-silent frame is found
+            while True:
+                # move the position backwards by one frame
+                wf.setpos(wf.tell() - 1)
+
+                # read the current frame and convert it to integer values
+                current_frame = wf.readframes(1)
+                current_frame_values = struct.unpack("<h" * channels, current_frame)
+
+                # check if the current frame is silent
+                is_silent = all(abs(value) < 50 for value in current_frame_values)
+
+                if not is_silent:
+                    # if a non-silent frame is found, calculate the duration of the silence at the end
+                    silence_duration = duration - (wf.tell() / frame_rate)
+                    return silence_duration
+                elif wf.tell() == 0:
+                    # if the beginning of the file is reached without finding a non-silent frame, assume the file is silent
+                    return duration
+        else:
+            # if the last frame is not silent, assume the file is not silent
+            return 0.0
+
+
+def clip_audio_end(audio_bytes: BytesIO, trim = 0.400) -> BytesIO:
+    """Trims the end of audio in a BytesIO object"""
+    audio_bytes.seek(0)
+    with wave.open(audio_bytes, mode='rb') as wf:
+        channels, sample_width, framerate, nframes = wf.getparams()
+        duration = nframes / framerate
+        silence_duration = detect_silence(wf)
+        trimmed_length = int((duration - silence_duration + 0.05) * framerate)
+        if trimmed_length <= 0:
+            return BytesIO(b'')
+        wf.setpos(0)
+        output_bytes = BytesIO()
+        with wave.open(output_bytes, mode='wb') as output_wf:
+            output_wf.setnchannels(channels)
+            output_wf.setsampwidth(sample_width)
+            output_wf.setframerate(framerate)
+            output_wf.writeframes(wf.readframes(trimmed_length))
+        output_bytes.seek(0)
+        return output_bytes
 
 
 def handle_command(command):
     """ Handle voice commands """
-    global messageArr
-
     match command:
         case 'reset':
-            messageArr = []
+            opts.message_array = []
             print(f'$ Messages cleared!')
             vrc_chatbox('🗑️ Cleared message buffer')
             play_sound('./prebaked_tts/Clearedmessagebuffer.wav')
 
         case 'chatbox':
             opts.chatbox = not opts.chatbox
+            uistuff.app.program_bools_frame.update_checkboxes()
             print(f'$ Chatbox set to {opts.chatbox}')
             play_sound(
                 f'./prebaked_tts/Chatboxesarenow{"on" if opts.chatbox else "off"}.wav')
 
         case 'sound':
             opts.soundFeedback = not opts.soundFeedback
+            uistuff.app.program_bools_frame.update_checkboxes()
             print(f'$ Sound feedback set to {opts.soundFeedback}')
             vrc_chatbox(('🔊' if opts.soundFeedback else '🔈') +
                         ' Sound feedback set to ' + ('on' if opts.soundFeedback else 'off'))
@@ -553,18 +596,20 @@ def handle_command(command):
 
         case 'audiotrigger':
             opts.audio_trigger_enabled = not opts.audio_trigger_enabled
+            uistuff.app.program_bools_frame.update_checkboxes()
             print(f'$ Audio Trigger set to {opts.audio_trigger_enabled}')
             vrc_chatbox(('🔊' if opts.audio_trigger_enabled else '🔈') +
                         ' Audio Trigger set to ' + ('on' if opts.audio_trigger_enabled else 'off'))
             # play_sound(f'./prebaked_tts/Audiotriggerisnow{"on" if audio_trigger_enabled else "off"}.wav')
 
         case 'messagelog':
-            print(f'{messageArr}')
+            print(f'{opts.message_array}')
             vrc_chatbox('📜 Dumped messages, check console')
             play_sound('./prebaked_tts/DumpedmessagesCheckconsole.wav')
 
         case 'verbose':
             opts.verbosity = not opts.verbosity
+            uistuff.app.program_bools_frame.update_checkboxes()
             print(f'$ Verbose logging set to {opts.verbosity}')
             vrc_chatbox('📜 Verbose logging set to ' +
                         ('on' if opts.verbosity else 'off'))
@@ -579,18 +624,21 @@ def handle_command(command):
 
         case 'gpt3':
             opts.gpt = 'GPT-3.5-Turbo'
+            uistuff.app.ai_stuff_frame.update_radio_buttons()
             print(f'$ Now using {opts.gpt}')
             vrc_chatbox('Now using GPT-3.5-Turbo')
             play_sound('./prebaked_tts/NowusingGPT35Turbo.wav')
 
         case 'gpt4':
             opts.gpt = 'GPT-4'
+            uistuff.app.ai_stuff_frame.update_radio_buttons()
             print(f'$ Now using {opts.gpt}')
             vrc_chatbox('Now using GPT-4')
             play_sound('./prebaked_tts/NowusingGPT4.wav')
 
         case 'parrotmode':
             opts.parrot_mode = not opts.parrot_mode
+            uistuff.app.program_bools_frame.update_checkboxes()
             print(f'$ Parrot mode set to {opts.parrot_mode}')
             vrc_chatbox(
                 f'🦜 Parrot mode is now {"on" if opts.parrot_mode else "off"}')
@@ -657,9 +705,9 @@ def load_whisper():
         verbose_print("~Attempt to load Whisper...")
         vrc_chatbox('🔄 Loading Voice Recognition...')
         model = None
-        start_time = time.time()
+        start_time = time.perf_counter()
         model = WhisperModel(opts.whisper_model, device='cuda', compute_type="int8") # FasterWhisper
-        end_time = time.time()
+        end_time = time.perf_counter()
         verbose_print(f'--Whisper loaded in {end_time - start_time:.3f}s')
         vrc_chatbox('✔️ Voice Recognition Loaded')
 
@@ -667,11 +715,13 @@ def load_whisper():
 def init_audio():
     global vb_in
     global vb_out
+    global pyAudio
+    pyAudio = pyaudio.PyAudio()
     info = pyAudio.get_host_api_info_by_index(0)
     numdevices = info.get('deviceCount')
     # vrc_chatbox('🔢 Enumerating Audio Devices...')
     # Get VB Aux Out for Input to Whisper, and VB Aux In for mic input
-    start_time = time.time()
+    start_time = time.perf_counter()
     for i in range(numdevices):
         info = pyAudio.get_device_info_by_host_api_device_index(0, i)
         if (info.get('maxInputChannels')) > 0:
@@ -692,16 +742,11 @@ def init_audio():
         print("!!Could not find output device for tts. Exiting...")
         raise RuntimeError
 
-    end_time = time.time()
-    verbose_print(f'--Audio initialized in {end_time - start_time:.3f}s')
+    end_time = time.perf_counter()
+    verbose_print(f'--Audio initialized in {end_time - start_time:.5f}s')
 
 
 def receiveCheckboxes(checkboxes):
-    # global opts.verbosity
-    # global opts.chatbox 
-    # global opts.parrot_mode 
-    # global opts.soundFeedback
-    # global opts.audio_trigger_enabled
     opts.verbosity = checkboxes[0]
     opts.chatbox = checkboxes[1]
     opts.parrot_mode = checkboxes[2]
@@ -745,10 +790,9 @@ def loop():
     global silence_timeout_timer
     global panic
 
-    global LOOP
-    LOOP = True
+    opts.LOOP = True
 
-    full_end_time = time.time()
+    full_end_time = time.perf_counter()
     print(f'--Program init took {full_end_time - full_start_time:.3f}s')
 
     while model is None:
@@ -756,7 +800,7 @@ def loop():
         pass
 
     print("~Waiting for sound...")
-    while LOOP:
+    while opts.LOOP:
         try:
             data = streamIn.read(CHUNK_SIZE)
             # calculate root mean square of audio data
@@ -787,6 +831,7 @@ def loop():
                         recording = False
                         trigger = False
                         save_recorded_frames(frames)
+                        verbose_print("~Waiting for sound...")
                         frames = []
                         panic = False
                 else:
@@ -799,6 +844,7 @@ def loop():
                     recording = False
                     trigger = False
                     save_recorded_frames(frames)
+                    verbose_print("~Waiting for sound...")
                     frames = []
                     panic = False
 
@@ -808,15 +854,18 @@ def loop():
             print(f'!!Exception:\n{e}')
             vrc_chatbox(f'⚠ {e}')
             streamIn.close()
-            LOOP = False
+            opts.LOOP = False
             sys.exit(e)
         except KeyboardInterrupt:
             print('Keyboard interrupt')
             vrc_chatbox(f'⚠ Quitting')
             streamIn.close()
             vrc_osc_server.shutdown()
+            opts.LOOP = False
             sys.exit("KeyboardInterrupt")
-
+    print("LOOP IS FALSE!!!!!!")
+    streamIn.close()
+    vrc_osc_server.shutdown()
 
 def start_server(server):  # (thread target) Starts OSC Listening server
     verbose_print(f'~Starting OSC Listener on {ip}:{outPort}')
