@@ -52,7 +52,7 @@ class ProgramOptionsFrame(customtkinter.CTkFrame):
         self.checkboxes = []
         self.checkbox_names = [
             "Verbose logging",
-            "Chatboxes",
+            "VRC Chatboxes",
             "Parrot mode",
             "Sound feedback",
             "Audio trigger"
