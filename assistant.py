@@ -8,11 +8,9 @@ full_start_time = time.perf_counter()
 import audioop
 from datetime import datetime
 from dotenv import load_dotenv
-# from elevenlabs import ElevenLabs
+# import whisper
 from faster_whisper import WhisperModel
 import ffmpeg
-from google.cloud import texttospeech  # Cloud TTS
-from gtts import gTTS
 import openai
 import os
 import pyaudio
@@ -20,16 +18,14 @@ from pynput.keyboard import Listener
 from pythonosc import udp_client
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import ThreadingOSCUDPServer
-import pyttsx3
 import re
-import shutil
+# import shutil
 import threading
-# import torch
 import wave
-# import whisper
+
 import options as opts
 import texttospeech as ttsutils
-import uistuff
+import uistuff as ui
 
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -56,7 +52,7 @@ silence_timeout_timer = None
 
 key_press_window_timeup = time.time()
 
-opts.tts_engine = ttsutils.eleven
+opts.tts_engine = ttsutils.WindowsTTS()
 
 # Constants
 pyAudio = pyaudio.PyAudio()
@@ -544,14 +540,14 @@ def handle_command(command):
 
         case 'chatbox':
             opts.chatbox = not opts.chatbox
-            uistuff.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.update_checkboxes()
             print(f'$ Chatbox set to {opts.chatbox}')
             play_sound(
                 f'./prebaked_tts/Chatboxesarenow{"on" if opts.chatbox else "off"}.wav')
 
         case 'sound':
             opts.soundFeedback = not opts.soundFeedback
-            uistuff.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.update_checkboxes()
             print(f'$ Sound feedback set to {opts.soundFeedback}')
             vrc_chatbox(('🔊' if opts.soundFeedback else '🔈') +
                         ' Sound feedback set to ' + ('on' if opts.soundFeedback else 'off'))
@@ -560,7 +556,7 @@ def handle_command(command):
 
         case 'audiotrigger':
             opts.audio_trigger_enabled = not opts.audio_trigger_enabled
-            uistuff.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.update_checkboxes()
             print(f'$ Audio Trigger set to {opts.audio_trigger_enabled}')
             vrc_chatbox(('🔊' if opts.audio_trigger_enabled else '🔈') +
                         ' Audio Trigger set to ' + ('on' if opts.audio_trigger_enabled else 'off'))
@@ -573,7 +569,7 @@ def handle_command(command):
 
         case 'verbose':
             opts.verbosity = not opts.verbosity
-            uistuff.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.update_checkboxes()
             print(f'$ Verbose logging set to {opts.verbosity}')
             vrc_chatbox('📜 Verbose logging set to ' +
                         ('on' if opts.verbosity else 'off'))
@@ -588,21 +584,21 @@ def handle_command(command):
 
         case 'gpt3':
             opts.gpt = 'GPT-3.5-Turbo'
-            uistuff.app.ai_stuff_frame.update_radio_buttons()
+            ui.app.ai_stuff_frame.update_radio_buttons()
             print(f'$ Now using {opts.gpt}')
             vrc_chatbox('Now using GPT-3.5-Turbo')
             play_sound('./prebaked_tts/NowusingGPT35Turbo.wav')
 
         case 'gpt4':
             opts.gpt = 'GPT-4'
-            uistuff.app.ai_stuff_frame.update_radio_buttons()
+            ui.app.ai_stuff_frame.update_radio_buttons()
             print(f'$ Now using {opts.gpt}')
             vrc_chatbox('Now using GPT-4')
             play_sound('./prebaked_tts/NowusingGPT4.wav')
 
         case 'parrotmode':
             opts.parrot_mode = not opts.parrot_mode
-            uistuff.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.update_checkboxes()
             print(f'$ Parrot mode set to {opts.parrot_mode}')
             vrc_chatbox(
                 f'🦜 Parrot mode is now {"on" if opts.parrot_mode else "off"}')
@@ -842,7 +838,7 @@ def start_key_listener():  # (thread target) Starts Keyboard Listener
 
 
 def start_ui(): # (thread target) Starts GUI
-    uistuff.initialize()
+    ui.initialize()
 
 whisper_thread = threading.Thread(name='whisper-thread', target=load_whisper)
 serverThread = threading.Thread(
