@@ -3,6 +3,7 @@
 from io import BytesIO
 import sys
 import time
+import struct
 full_start_time = time.perf_counter()
 import audioop
 from datetime import datetime
@@ -341,15 +342,17 @@ def cut_up_text(text):
     i = 0
     list = []
     for i, segment in enumerate(segments):
-        audio = tts_engine.tts(text)
+        audio = tts_engine.tts(ttsutils.filter(segment))
         if i is not len(segments) - 1:
-            clip_audio_end(audio)
+            audio = clip_audio_end(audio)
         list.append((segment, audio))
     # and then
     speaking = True
     for text, audio in list:
+        audio.seek(0)
         vrc_chatbox(text)
         play_sound(audio)
+        audio.close()
     speaking = False
 
 def tts(text):
@@ -504,60 +507,59 @@ def to_wav_bytes(file, speed=1.0):
 #         raise RuntimeError(f"Failed to convert audio: {e.stderr}") from e
 
 
-def detect_silence(wave_file):
+def detect_silence(wf):
     """ Detects the duration of silence at the end of a wave file """
-    import struct
-    with wave.open(wave_file, 'rb') as wf:
-        channels = wf.getnchannels()
-        frame_rate = wf.getframerate()
-        n_frames = wf.getnframes()
-        duration = n_frames / frame_rate
+    threshold = 1024
+    channels = wf.getnchannels()
+    frame_rate = wf.getframerate()
+    n_frames = wf.getnframes()
+    duration = n_frames / frame_rate
 
-        # set the position to the end of the file
-        wf.setpos(n_frames - 1)
+    # set the position to the end of the file
+    wf.setpos(n_frames - 1)
 
-        # read the last frame and convert it to integer values
-        last_frame = wf.readframes(1)
-        last_frame_values = struct.unpack("<h" * channels, last_frame)
+    # read the last frame and convert it to integer values
+    last_frame = wf.readframes(1)
+    last_frame_values = struct.unpack("<h" * channels, last_frame)
 
-        # check if the last frame is silent
-        is_silent = all(abs(value) < 50 for value in last_frame_values)
+    # check if the last frame is silent
+    is_silent = all(abs(value) < threshold for value in last_frame_values)
 
-        if is_silent:
-            # if the last frame is silent, continue scanning backwards until a non-silent frame is found
-            while True:
-                # move the position backwards by one frame
-                wf.setpos(wf.tell() - 1)
+    if is_silent:
+        # if the last frame is silent, continue scanning backwards until a non-silent frame is found
+        while True:
+            # move the position backwards by one frame
+            wf.setpos(wf.tell() - 2)
 
-                # read the current frame and convert it to integer values
-                current_frame = wf.readframes(1)
-                current_frame_values = struct.unpack("<h" * channels, current_frame)
+            # read the current frame and convert it to integer values
+            current_frame = wf.readframes(1)
+            current_frame_values = struct.unpack("<h" * channels, current_frame)
 
-                # check if the current frame is silent
-                is_silent = all(abs(value) < 50 for value in current_frame_values)
+            # check if the current frame is silent
+            is_silent = all(abs(value) < threshold for value in current_frame_values)
 
-                if not is_silent:
-                    # if a non-silent frame is found, calculate the duration of the silence at the end
-                    silence_duration = duration - (wf.tell() / frame_rate)
-                    return silence_duration
-                elif wf.tell() == 0:
-                    # if the beginning of the file is reached without finding a non-silent frame, assume the file is silent
-                    return duration
-        else:
-            # if the last frame is not silent, assume the file is not silent
-            return 0.0
+            if not is_silent:
+                # if a non-silent frame is found, calculate the duration of the silence at the end
+                silence_duration = duration - (wf.tell() / frame_rate)
+                return silence_duration
+            elif wf.tell() == 0:
+                # if the beginning of the file is reached without finding a non-silent frame, assume the file is silent
+                return duration
+    else:
+        # if the last frame is not silent, assume the file is not silent
+        return 0.0
 
 
 def clip_audio_end(audio_bytes: BytesIO, trim = 0.400) -> BytesIO:
     """Trims the end of audio in a BytesIO object"""
     audio_bytes.seek(0)
     with wave.open(audio_bytes, mode='rb') as wf:
-        channels, sample_width, framerate, nframes = wf.getparams()
+        channels, sample_width, framerate, nframes = wf.getparams()[:4]
         duration = nframes / framerate
         silence_duration = detect_silence(wf)
-        trimmed_length = int((duration - silence_duration + 0.05) * framerate)
+        trimmed_length = int((duration - silence_duration + 0.050) * framerate)
         if trimmed_length <= 0:
-            return BytesIO(b'')
+            return BytesIO(b'RIFF\x00\x00\x00\x00WAVE')
         wf.setpos(0)
         output_bytes = BytesIO()
         with wave.open(output_bytes, mode='wb') as output_wf:
