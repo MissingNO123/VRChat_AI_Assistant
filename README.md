@@ -1,6 +1,6 @@
 # VRChat AI Assistant
 
-[OpenAI](https://openai.com/) [GPT-4](https://openai.com/product/gpt-4) powered [AI Assistant](https://en.wikipedia.org/wiki/Virtual_assistant) that integrates with [VRChat](https://hello.vrchat.com/) using [OSC](https://docs.vrchat.com/docs/osc-overview)
+[OpenAI](https://openai.com/) [GPT-4](https://openai.com/product/gpt-4) powered [AI Assistant](https://en.wikipedia.org/wiki/Virtual_assistant) with a GUI that integrates with [VRChat](https://hello.vrchat.com/) using [OSC](https://docs.vrchat.com/docs/osc-overview)
 This program is currently in an ["it works on my machine"](https://i.redd.it/6u77tkmyaomz.jpg) state, and will most likely not work on yours without a ton of tinkering.
 For example, it relies on [VB-Audio VoiceMeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm) to play audio over the microphone.
 Either way, I'm uploading this just to have it up here.
