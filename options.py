@@ -16,6 +16,8 @@ max_conv_length = 10            # Max length of conversation buffer
 in_dev_name = "VoiceMeeter Aux Output"  # Input  (mic)
 out_dev_name = "VoiceMeeter Aux Input"  # Output (tts)
 
+tts_engine = None
+
 # elevenVoice = 'Bella'                # Voice to use with 11.ai
 elevenVoice = 'rMQzVEcycGrNzwMhDeq8'   # The Missile Guidance System
 

@@ -56,7 +56,7 @@ silence_timeout_timer = None
 
 key_press_window_timeup = time.time()
 
-tts_engine = ttsutils.GoogleCloudTTS()
+opts.tts_engine = ttsutils.eleven
 
 # Constants
 pyAudio = pyaudio.PyAudio()
@@ -342,7 +342,7 @@ def cut_up_text(text):
     i = 0
     list = []
     for i, segment in enumerate(segments):
-        audio = tts_engine.tts(ttsutils.filter(segment))
+        audio = opts.tts_engine.tts(ttsutils.filter(segment))
         if i is not len(segments) - 1:
             audio = clip_audio_end(audio)
         list.append((segment, audio))
@@ -355,16 +355,18 @@ def cut_up_text(text):
         audio.close()
     speaking = False
 
+
 def tts(text):
     global speaking
     global panic
     speaking = True
-    audioBytes = tts_engine.tts(text)
+    audioBytes = opts.tts_engine.tts(text)
     if audioBytes == None:
         speaking = False
         panic = True
         return
     play_sound(audioBytes)
+    audioBytes.close()
     speaking = False
 
 # def synthesize_text(text, filename):
@@ -373,29 +375,22 @@ def tts(text):
 #     gcloud_synthesize_text(text, filename)
 
 
-def tts_gtrans(text, filename='tts.wav', language='en'):
-    """ Returns speech from text using google API """
-    filtered_text = ttsutils.filter(text)
-    start_time = time.perf_counter()
-    tts = gTTS(filtered_text, lang=language)
-    tts.save('tts.mp3')
-    end_time = time.perf_counter()
-    verbose_print(f'--gTTS took {end_time - start_time:.3f}s')
-    to_wav('tts.mp3', 1.3)
-    play_sound('tts.wav')
+# def tts_gtrans(text, filename='tts.wav', language='en'):
+#     """ Returns speech from text using google API """
+#     filtered_text = ttsutils.filter(text)
+#     start_time = time.perf_counter()
+#     tts = gTTS(filtered_text, lang=language)
+#     tts.save('tts.mp3')
+#     end_time = time.perf_counter()
+#     verbose_print(f'--gTTS took {end_time - start_time:.3f}s')
+#     to_wav('tts.mp3', 1.3)
+#     play_sound('tts.wav')
 
 
 def tts_windows(text, filename='tts.wav'):
-    """ Returns speech from text using Windows API """
-    ttsEngine = pyttsx3.init()
-    ttsEngine.setProperty('rate', 180)
-    ttsVoices = ttsEngine.getProperty('voices')
-    ttsEngine.setProperty('voice', ttsVoices[1].id)
-    filtered_text = ttsutils.filter(text)
-    ttsEngine.save_to_file(filtered_text, 'tts.wav')
-    ttsEngine.runAndWait()
-    # to_wav('tts.wav', 1.1)
-    play_sound('tts.wav')
+    wtts = ttsutils.WindowsTTS()
+    audio = wtts.tts("test")
+
 
 
 def tts_google(text, filename='tts.wav'):
@@ -407,11 +402,11 @@ def tts_google(text, filename='tts.wav'):
     play_sound(audioBytes)
 
 
-def tts_eleven(text):
-    """ Returns speech from text using Eleven Labs API """
-    audioBytes = ttsutils.eleven.tts(text)
-    audioWav = to_wav_bytes(audioBytes)
-    play_sound(audioWav)
+# def tts_eleven(text):
+#     """ Returns speech from text using Eleven Labs API """
+#     audioBytes = ttsutils.eleven.tts(text)
+#     audioWav = to_wav_bytes(audioBytes)
+#     play_sound(audioWav)
 
 
 # def eleven_synthesize_text(text, filename):
@@ -425,34 +420,34 @@ def tts_eleven(text):
 #     to_wav(f'{filename}.mp3')
 
 
-def gcloud_synthesize_text(text, filename='tts.wav'):
-    """ Calls Google Cloud API to synthesize speech from the input string of text and writes it to a wav file """
-    global panic
-    filtered_text = ttsutils.filter(text)
-    client = texttospeech.TextToSpeechClient()
-    input_text = texttospeech.SynthesisInput(text=filtered_text)
-    voice = texttospeech.VoiceSelectionParams(
-        language_code=opts.gcloud_language_code,
-        name=opts.gcloud_voice_name,
-        ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
-    )
-    audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-        speaking_rate=1.15,
-        pitch=-1.0
-    )
-    try:
-        response = client.synthesize_speech(
-            request={"input": input_text, "voice": voice,
-                    "audio_config": audio_config}
-        )
-    except Exception as e:
-        print(e)
-        panic = True
-        return
+# def gcloud_synthesize_text(text, filename='tts.wav'):
+#     """ Calls Google Cloud API to synthesize speech from the input string of text and writes it to a wav file """
+#     global panic
+#     filtered_text = ttsutils.filter(text)
+#     client = texttospeech.TextToSpeechClient()
+#     input_text = texttospeech.SynthesisInput(text=filtered_text)
+#     voice = texttospeech.VoiceSelectionParams(
+#         language_code=opts.gcloud_language_code,
+#         name=opts.gcloud_voice_name,
+#         ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
+#     )
+#     audio_config = texttospeech.AudioConfig(
+#         audio_encoding=texttospeech.AudioEncoding.LINEAR16,
+#         speaking_rate=1.15,
+#         pitch=-1.0
+#     )
+#     try:
+#         response = client.synthesize_speech(
+#             request={"input": input_text, "voice": voice,
+#                     "audio_config": audio_config}
+#         )
+#     except Exception as e:
+#         print(e)
+#         panic = True
+#         return
 
-    with open(filename, "wb") as out:
-        out.write(response.audio_content)
+#     with open(filename, "wb") as out:
+#         out.write(response.audio_content)
 
 
 def to_wav(file, speed=1.0):
@@ -470,42 +465,9 @@ def to_wav(file, speed=1.0):
         verbose_print(f'--ffmpeg took {end_time - start_time:.3f}s')
     except ffmpeg.Error as e:
         raise RuntimeError(f"Failed to convert audio: {e.stderr}") from e
-    
-def to_wav_bytes(file, speed=1.0):
-    """Converts an .mp3 BytesIO object to a .wav BytesIO object and optionally speeds it up"""
-    try:
-        start_time = time.perf_counter()
-        input_stream = ffmpeg.input('pipe:', format='mp3', loglevel='quiet', threads=0)
-        audio = input_stream.audio.filter('atempo', speed)
-        output_stream = audio.output('-', format='wav', loglevel='quiet')
-        stdout, stderr = ffmpeg.run(output_stream, input=file.read(), cmd=["ffmpeg", "-nostdin"], capture_stdout=True, capture_stderr=True)
-        end_time = time.perf_counter()
-        verbose_print(f'--ffmpeg took {end_time - start_time:.3f}s')
-        return BytesIO(stdout)
-    except ffmpeg.Error as e:
-        raise RuntimeError(f"Failed to convert audio: {e.stderr.decode()}") from e
 
 
-# def clip_audio_end(filename, trim=0.400):
-#     """ Trims the end of audio in a file """
-#     name = filename[0:filename.rfind('.')]
-#     name = name + '_trim.wav'
-#     try:
-#         start_time = time.perf_counter()
-#         probe = ffmpeg.probe(filename)
-#         duration = float(probe['format']['duration'])
-#         if duration < 5.0: 
-#             trim = 0.250
-#         trimmed_length = duration - trim
-#         input_stream = ffmpeg.input(filename, ss='0.030', t=trimmed_length)#, **audio_format_options)
-#         audio = input_stream.audio
-#         output_stream = audio.output(name, format='wav')
-#         output_stream.run(quiet=True, overwrite_output=True)
-#         end_time = time.perf_counter()
-#         verbose_print(f'--ffmpeg clipping took {end_time - start_time:.3f}s')
-#     except ffmpeg.Error as e:
-#         raise RuntimeError(f"Failed to convert audio: {e.stderr}") from e
-
+   
 
 def detect_silence(wf):
     """ Detects the duration of silence at the end of a wave file """
@@ -865,7 +827,7 @@ def loop():
             vrc_osc_server.shutdown()
             opts.LOOP = False
             sys.exit("KeyboardInterrupt")
-    print("LOOP IS FALSE!!!!!!")
+    print("Exiting, Bye!")
     streamIn.close()
     vrc_osc_server.shutdown()
 

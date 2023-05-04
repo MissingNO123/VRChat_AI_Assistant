@@ -3,6 +3,7 @@ import os
 from typing import Optional, Union, Callable
 import customtkinter
 import options as opts
+import texttospeech
 import sys
 
 """
@@ -132,15 +133,11 @@ class AIStuffFrame(customtkinter.CTkFrame):
 
         self.label_max_tokens = customtkinter.CTkLabel(self, text="GPT Max Tokens: ", fg_color="transparent")
         self.label_max_tokens.grid(row=7, column=0, sticky="w", pady=(4,1), padx=5)
-        # self.textfield_max_tokens = customtkinter.CTkEntry(self, width=50, placeholder_text="###", textvariable=self.max_tokens_var, validate='key', validatecommand=(vcmd, '%P'))
-        # self.textfield_max_tokens.grid(row=8, column=0, columnspan=2, sticky="w", pady=2, padx=(10,2))
         self.spinbox_max_tokens = IntSpinbox(self, step_size=4, min=0, max=8192, value=self.max_tokens_var.get(), command=self._spinbox_callback)
         self.spinbox_max_tokens.grid(row=8, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
 
         self.label_max_conv_length = customtkinter.CTkLabel(self, text="GPT Max Conv. Length: ", fg_color="transparent")
         self.label_max_conv_length.grid(row=9, column=0, sticky="w", pady=(4,1), padx=5)
-        # self.textfield_max_conv_length = customtkinter.CTkEntry(self, width=50, placeholder_text="#", textvariable=self.max_conv_length_var, validate='key', validatecommand=(vcmd, '%P'))
-        # self.textfield_max_conv_length.grid(row=10, column=0, columnspan=2, sticky="w", pady=2, padx=(10,2))
         self.spinbox_max_conv_length = IntSpinbox(self, step_size=1, min=2, value=self.max_conv_length_var.get(), command=self._spinbox_callback)
         self.spinbox_max_conv_length.grid(row=10, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
 
@@ -211,9 +208,6 @@ class AudioStuffFrame(customtkinter.CTkFrame):
         self.label_rms_threshold = customtkinter.CTkLabel(self, text="Audio Trigger Threshold: ", fg_color="transparent")
         self.label_rms_threshold.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
         row_id += 1
-        # self.textfield_rms_threshold = customtkinter.CTkEntry(self, width=50, placeholder_text="#", textvariable=self.rms_threshold, validate='key', validatecommand=(vcmd, '%P'))
-        # self.textfield_rms_threshold.grid(row=row_id, column=0, columnspan=2, sticky="w", pady=2, padx=10)
-        # self.textfields.append(self.textfield_rms_threshold)
         self.spinbox_rms_threshold = IntSpinbox(self, step_size=4, min=0, max=16384, value=self.rms_threshold.get(), command=self._spinbox_callback)
         self.spinbox_rms_threshold.grid(row=row_id, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
         row_id += 1
@@ -221,9 +215,6 @@ class AudioStuffFrame(customtkinter.CTkFrame):
         self.label_silence_timeout = customtkinter.CTkLabel(self, text="Silence Timeout: ", fg_color="transparent")
         self.label_silence_timeout.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
         row_id += 1
-        # self.textfield_silence_timeout = customtkinter.CTkEntry(self, width=50, placeholder_text="#", textvariable=self.silence_timeout, validate='key', validatecommand=(vcmd, '%P'))
-        # self.textfield_silence_timeout.grid(row=row_id, column=0, columnspan=2, sticky="w", pady=2, padx=10)
-        # self.textfields.append(self.textfield_silence_timeout)
         self.spinbox_silence_timeout = FloatSpinbox(self, step_size=0.25, min=0, max=30, value=self.silence_timeout.get(), command=self._spinbox_callback)
         self.spinbox_silence_timeout.grid(row=row_id, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
         row_id += 1
@@ -231,9 +222,6 @@ class AudioStuffFrame(customtkinter.CTkFrame):
         self.label_max_recording_time = customtkinter.CTkLabel(self, text="Max Listen Time: ", fg_color="transparent")
         self.label_max_recording_time.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
         row_id += 1
-        # self.textfield_max_recording_time = customtkinter.CTkEntry(self, width=50, placeholder_text="#", textvariable=self.max_recording_time, validate='key', validatecommand=(vcmd, '%P'))
-        # self.textfield_max_recording_time.grid(row=row_id, column=0, columnspan=2, sticky="w", pady=2, padx=10)
-        # self.textfields.append(self.textfield_max_recording_time)
         self.spinbox_max_recording_time = FloatSpinbox(self, step_size=0.25, min=0, max=30, value=self.max_recording_time.get(), command=self._spinbox_callback)
         self.spinbox_max_recording_time.grid(row=row_id, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
         row_id += 1
@@ -307,19 +295,11 @@ class KeyboardControlFrame(customtkinter.CTkFrame):
         self.label_key_press_window = customtkinter.CTkLabel(self, text="Double Press Window: ", fg_color="transparent")
         self.label_key_press_window.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
         row_id += 1
-        # self.textfield_key_press_window = customtkinter.CTkEntry(self, width=50, placeholder_text="#", textvariable=self.key_press_window_var, validate='key', validatecommand=(vcmd, '%P'))
-        # self.textfield_key_press_window.grid(row=row_id, column=0, columnspan=2, sticky="w", pady=2, padx=10)
         self.spinbox_key_press_window = FloatSpinbox(self, step_size=0.05, min=0.1, value=self.key_press_window_var.get(), command=self._spinbox_callback)
         self.spinbox_key_press_window.grid(row=row_id, column=0, sticky="ew", pady=2, padx=10)
 
-
-        # self.textfields.append(self.textfield_key_press_window)
         row_id += 1
 
-        # for field in self.textfields:
-        #     field.bind("<FocusOut>", self._update_keyboard_page)
-        #     field.bind("<Return>", self._update_keyboard_page)
-        
     def _spinbox_callback(self):
         value = self.spinbox_key_press_window.get()
         if value is not None: 
@@ -634,17 +614,9 @@ class App(customtkinter.CTk):
 
         self.protocol("WM_DELETE_WINDOW",  self.on_close)
 
-    #     self.button = customtkinter.CTkButton(self, text="my button", command=self.button_callback)
-    #     self.button.grid(row=2, column=0, columnspan=3 , padx=10, pady=10, sticky="ew")
-
-    # def button_callback(self):
-    #     checked_boxes = self.program_bools_frame.get()
-    #     print(checked_boxes)
-
     def on_close(self):
         opts.LOOP = False
         self.destroy()
-    
 
 def initialize():
     global app 

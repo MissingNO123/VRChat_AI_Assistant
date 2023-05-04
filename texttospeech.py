@@ -5,6 +5,8 @@ from io import BytesIO
 from google.cloud import texttospeech  # Cloud TTS
 from elevenlabs import ElevenLabs
 from gtts import gTTS
+import pyttsx3
+import ffmpeg
 import options as opts
 from dotenv import load_dotenv
 load_dotenv()
@@ -14,6 +16,22 @@ def verbose_print(text):
     if opts.verbosity:
         print(text)
 
+
+def to_wav_bytes(file, speed=1.0):
+    """Converts an .mp3 BytesIO object to a .wav BytesIO object and optionally speeds it up"""
+    file.seek(0)
+    try:
+        start_time = time.perf_counter()
+        input_stream = ffmpeg.input('pipe:', format='mp3', loglevel='quiet', threads=0)
+        audio = input_stream.audio.filter('atempo', speed)
+        output_stream = audio.output('-', format='wav', loglevel='quiet')
+        stdout, stderr = ffmpeg.run(output_stream, input=file.read(), cmd=["ffmpeg", "-nostdin"], capture_stdout=True, capture_stderr=True)
+        end_time = time.perf_counter()
+        verbose_print(f'--ffmpeg to_wav took {end_time - start_time:.3f}s')
+        return BytesIO(stdout)
+    except ffmpeg.Error as e:
+        raise RuntimeError(f"Failed to convert audio: {e.stderr.decode()}") from e
+ 
 
 def filter(string):
     """ Makes words in input string pronuncable by TTS """
@@ -32,6 +50,24 @@ def filter(string):
     return string
 
 
+class WindowsTTS():
+    def __init__(self):
+        self.ttsEngine = pyttsx3.init()
+        self.ttsEngine.setProperty('rate', 180)
+        ttsVoices = self.ttsEngine.getProperty('voices')
+        self.ttsEngine.setProperty('voice', ttsVoices[1].id) #eva mobile
+   
+    def tts(self, text):
+        """ Returns speech from text using Windows API """
+        audio = BytesIO()
+        self.ttsEngine.save_to_file(filter(text), 'tts.wav')
+        self.ttsEngine.runAndWait()
+        with open('tts.wav', 'rb') as f:
+            audio = BytesIO(f.read())
+        audio.seek(0)
+        return audio
+
+
 class GoogleTranslateTTS():
     def __init__(self, lang='en'):
         self.language = lang
@@ -44,9 +80,12 @@ class GoogleTranslateTTS():
         tts = gTTS(filtered_text, lang=self.language)
         tts.write_to_fp(output)
         output.seek(0)
+        output = to_wav_bytes(output)
+        output.seek(0)
         end_time = time.time()
         verbose_print(f'--gTTS took {end_time - start_time:.3f}s')
         return output
+
 
 class GoogleCloudTTS():
     def __init__(self, language_code=opts.gcloud_language_code, name=opts.gcloud_voice_name):
@@ -90,38 +129,33 @@ class ElevenTTS(ElevenLabs):
         if _voice_id is None:
             _voice_id = opts.elevenVoice
         self.selected_voice = self.voices[_voice_id]
+        self.voice_settings = self.selected_voice.settings
 
     def tts(self, text):
         """ Returns speech from text using Eleven Labs API """
-        filename = 'eleven_tts'
         verbose_print('--Getting TTS from 11.ai...')
-        filtered_text = filter(text)
-        return self._generate(filtered_text)
-
-    def set_voice(self, voice_id):
-        self.selected_voice = self.voices[voice_id]
-
-    def _generate(self, text, voice_settings=None):
-        """ Generate a text-to-speech with the provided text and settings """
         if self.selected_voice is None:
             self._file = BytesIO()
             return self._file
-        if not voice_settings:
-            voice_settings = self.selected_voice.settings
 
         request = self._request(
             "POST",
             "text-to-speech/%s" % self.selected_voice.id,
             {
-                "text": text,
-                "voice_settings": voice_settings
+                "text": filter(text),
+                "voice_settings": self.voice_settings
             }
         )
 
-        self._file = BytesIO()
-        self._file.write(request.content)
-        self._file.seek(0)
-        return self._file
+        file = BytesIO()
+        file.write(request.content)
+        file.seek(0)
+        file = to_wav_bytes(file)
+        file.seek(0)
+        return file
+
+    def set_voice(self, voice_id):
+        self.selected_voice = self.voices[voice_id]
 
 
 eleven = ElevenTTS(api_key=os.getenv(
