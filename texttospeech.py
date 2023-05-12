@@ -41,6 +41,7 @@ def filter(string):
     replacements = {
         '`': '',
         '💬': '',
+        '🤖':'',
         '~': '',
         '*': '',
         'missingno': 'missing no',
