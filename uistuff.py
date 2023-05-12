@@ -29,17 +29,20 @@ Frame 4: Audio
     - input device name (dropdown)
     - output device name (dropdown)
 Frame 5: TTS Settings
-    - Dynamic Frame Switcher
-        - Google Cloud
+    ✓ Dynamic Frame Switcher
+        ✓ Google Cloud
             - language code (dropdown)
             - voice name (dropdown)
         - Eleven Labs
-            - Voice Name (dropdown)
+            ✓ Voice Name (dropdown)
             - Voice Settings??
         - Google Translate
             - Language Code (dropdown)
-        - Windows Default
-            - Voice Name (dropdown)
+        ✓ Windows Default
+            ✓ Voice Name (dropdown)
+            ✓ Speech Rate (spinbox)
+        ✓ TikTok
+            ✓ Voice Name (dropdown)
 """
 
 app = None
@@ -101,7 +104,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
         super().__init__(master)
         self.grid_columnconfigure(1, weight=1)
         self.title = title
-        self.whispermodels = ["tiny", "tiny.en", "small", "small.en", "medium", "medium.en", "large", "large-v2"]
+        self.whispermodels = ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large", "large-v2"]
 
         self.title = customtkinter.CTkLabel(
             self, text=self.title, fg_color="gray30", corner_radius=6)
@@ -320,15 +323,276 @@ class KeyboardControlFrame(customtkinter.CTkFrame):
                 return False
 
 
-class GCloudOptionsFrame(customtkinter.CTkFrame):
+class TTSSelectorFrame(customtkinter.CTkFrame):
     def __init__(self, master, title):
         super().__init__(master)
         self.title = title
-        self.grid_columnconfigure(0, weight=1)
-        self.textfields = []
-        
+        self.width = 140
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure((0,1), weight=0)
+        self.rowconfigure(2, weight=1)
+
         self.title = customtkinter.CTkLabel(
             self, text=self.title, fg_color="gray30", corner_radius=6)
+        self.title.grid(row=0, column=0, padx=10, pady=(10,0), sticky="ew")
+
+        self.selected_tts_engine_name = customtkinter.StringVar(value=opts.tts_engine_name)
+
+        self.dropdown_tts_engine_select = customtkinter.CTkOptionMenu(self, variable=self.selected_tts_engine_name, values=opts.tts_engine_selections, command=self._set_tts_engine)
+        self.dropdown_tts_engine_select.grid(row=1, column=0, sticky="ew", padx=10, pady=(10,15))
+
+        self.frame_tts_options = WindowsTTSOptionsFrame(master=self, title="Windows TTS Configuration")
+        self.frame_tts_options.grid(row=2, column=0, sticky="nsew", padx=0, pady=(10,0))
+
+    def _set_tts_engine(self, choice):
+        match choice:
+            case "Windows":
+                opts.tts_engine = texttospeech.WindowsTTS()
+                self.frame_tts_options = WindowsTTSOptionsFrame(master=self, title="Windows TTS Configuration")
+                self.frame_tts_options.grid(row=2, column=0, sticky="nsew", padx=0, pady=0)
+            case "Google Cloud":
+                engine = texttospeech.GoogleCloudTTS()
+                if not engine.ready:
+                    print("Google Cloud TTS engine is not ready!")
+                    popup = Popup(self, window_title="TTS engine not ready",
+                                  window_text="Google Cloud's TTS engine could not start!\nMake sure your credentials are set up properly.", 
+                                  button_text="OK")
+                    popup.after(250, popup.focus) # Why do I need to wait for this???
+                    return
+                opts.tts_engine = engine
+                self.frame_tts_options = GCloudOptionsFrame(master=self, title="Google Cloud TTS Configuration")
+                self.frame_tts_options.grid(row=2, column=0, sticky="nsew", padx=0, pady=0)
+            case "Google Translate":
+                opts.tts_engine = texttospeech.GoogleTranslateTTS()
+                self.frame_tts_options = GoogleTranslateOptionsFrame(master=self, title="Google Translate TTS Configuration")
+                self.frame_tts_options.grid(row=2, column=0, sticky="nsew", padx=0, pady=0)
+            case "ElevenLabs":
+                engine = texttospeech.eleven
+                if not engine.ready:
+                    print("ElevenLabs TTS engine is not ready!")
+                    popup = Popup(self, window_title="TTS engine not ready",
+                                  window_text="ElevenLabs' TTS engine could not start!\nMake sure your credentials are set up properly.", 
+                                  button_text="OK")
+                    popup.after(250, popup.focus) # Why do I need to wait for this???
+                    return
+                opts.tts_engine = engine
+                self.frame_tts_options = ElevenTTSOptionsFrame(master=self, title="ElevenLabs TTS Configuration")
+                self.frame_tts_options.grid(row=2, column=0, sticky="nsew", padx=0, pady=0)
+            case "TikTok":
+                opts.tts_engine = texttospeech.TikTokTTS()
+                self.frame_tts_options = TikTokOptionsFrame(master=self, title="TikTok TTS Configuration")
+                self.frame_tts_options.grid(row=2, column=0, sticky="nsew", padx=0, pady=0)
+
+
+class PlaceholderOptionsFrame(customtkinter.CTkFrame):
+    def __init__(self, master, title):
+        super().__init__(master)
+        self.title = title
+
+        self.title = customtkinter.CTkLabel(
+            self, text=self.title, fg_color="gray30", corner_radius=6)
+        self.title.grid(row=0, column=0, columnspan=3, padx=10, pady=(10,0), sticky="ew")
+
+
+class GoogleTranslateOptionsFrame(customtkinter.CTkFrame):
+    def __init__(self, master, title):
+        super().__init__(master, fg_color="transparent")
+        self.title = title
+        self.grid_columnconfigure(0, weight=1)
+        self.textfields = []
+
+        self.title = customtkinter.CTkLabel(
+            self, text=self.title, fg_color="gray20", corner_radius=4)
+        self.title.grid(row=0, column=0, padx=10, pady=(10,0), sticky="ew")
+
+        if not isinstance(opts.tts_engine, texttospeech.GoogleTranslateTTS):
+            self.label_error = customtkinter.CTkLabel(self, text="Google Translate is not the currently selected TTS engine.", fg_color="transparent")
+            self.label_error.grid(row=1, column=0, sticky="ew", pady=(4,1), padx=5)
+            return
+        
+        self.selected_language = customtkinter.StringVar(value=opts.gtrans_language_code)
+
+        row_id = 1
+
+        self.label_gtrans_tts_voice = customtkinter.CTkLabel(self, text="Language Code: ", fg_color="transparent")
+        self.label_gtrans_tts_voice.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
+        row_id += 1
+
+        self.textfield_selected_language = customtkinter.CTkEntry(self, width=60, placeholder_text="en", textvariable=self.selected_language)
+        self.textfield_selected_language.grid(row=row_id, column=0, sticky="w", pady=(2,10), padx=10)
+        self.textfields.append(self.textfield_selected_language)
+
+        for field in self.textfields:
+            field.bind("<FocusOut>", self._update_language)
+            field.bind("<Return>", self._update_language)
+
+    def _update_language(self, event=None):
+        if not isinstance(opts.tts_engine, texttospeech.GoogleTranslateTTS):
+            print("Google Translate is not the currently selected TTS engine")
+            return
+        opts.tts_engine.set_language(self.textfield_selected_language.get())
+
+
+
+class TikTokOptionsFrame(customtkinter.CTkFrame):
+    def __init__(self, master, title):
+        super().__init__(master, fg_color="transparent")
+        self.title = title
+        self.grid_columnconfigure(0, weight=1)
+
+        self.title = customtkinter.CTkLabel(
+            self, text=self.title, fg_color="gray20", corner_radius=4)
+        self.title.grid(row=0, column=0, padx=10, pady=(10,0), sticky="ew")
+
+        self.voices = []
+
+        if not isinstance(opts.tts_engine, texttospeech.TikTokTTS):
+            self.label_error = customtkinter.CTkLabel(self, text="TikTok is not the currently selected TTS engine.", fg_color="transparent")
+            self.label_error.grid(row=1, column=0, sticky="ew", pady=(4,1), padx=5)
+            return
+        
+        self.voices = list(texttospeech.tiktok_voice_list.keys())
+
+        self.selected_tiktok_tts_voice_name = customtkinter.StringVar(value=opts.tiktok_voice_id)
+        
+        row_id = 1
+
+        self.label_tiktok_tts_voice = customtkinter.CTkLabel(self, text="Voice Name: ", fg_color="transparent")
+        self.label_tiktok_tts_voice.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
+        row_id += 1
+
+        self.dropdown_tiktok_tts_voice_select = customtkinter.CTkOptionMenu(self, dynamic_resizing=False, variable=self.selected_tiktok_tts_voice_name, values=self.voices, command=self._set_tts_voice)
+        self.dropdown_tiktok_tts_voice_select.grid(row=row_id, column=0, sticky="ew", padx=10, pady=(0,10))
+        row_id += 1
+
+    def _set_tts_voice(self, choice):
+        if not isinstance(opts.tts_engine, texttospeech.TikTokTTS):
+            print("TikTok is not the currently selected TTS engine")
+            return
+        opts.tts_engine.set_voice(texttospeech.tiktok_voice_list[choice])
+        print(f'Set TikTok voice to {choice} ({opts.tts_engine.voice_id})')
+
+
+class ElevenTTSOptionsFrame(customtkinter.CTkFrame):
+    def __init__(self, master, title):
+        super().__init__(master, fg_color="transparent")
+        self.title = title
+        self.grid_columnconfigure(0, weight=1)
+
+        self.title = customtkinter.CTkLabel(
+            self, text=self.title, fg_color="gray20", corner_radius=4)
+        self.title.grid(row=0, column=0, columnspan=3, padx=10, pady=(10,0), sticky="ew")
+
+        self.voices = []
+
+        if not isinstance(opts.tts_engine, texttospeech.ElevenTTS):
+            self.label_error = customtkinter.CTkLabel(self, text="ElevenLabs is not the currently selected TTS engine.", fg_color="transparent")
+            self.label_error.grid(row=1, column=0, sticky="ew", pady=(4,1), padx=5)
+            return
+
+        for voice in opts.tts_engine.voices:
+            self.voices.append(voice.name)
+
+        self.selected_eleven_tts_voice_name = customtkinter.StringVar(value=opts.eleven_voice_id)
+        
+        row_id = 1
+
+        self.label_eleven_tts_voice = customtkinter.CTkLabel(self, text="Voice Name: ", fg_color="transparent")
+        self.label_eleven_tts_voice.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
+        row_id += 1
+
+        self.dropdown_eleven_tts_voice_select = customtkinter.CTkOptionMenu(self, dynamic_resizing=False, variable=self.selected_eleven_tts_voice_name, values=self.voices, command=self._set_tts_voice)
+        self.dropdown_eleven_tts_voice_select.grid(row=row_id, column=0, sticky="ew", padx=10, pady=(0,10))
+        row_id += 1
+
+        # self.label_speaking_rate = customtkinter.CTkLabel(self, text="Speaking Rate: ", fg_color="transparent")
+        # self.label_speaking_rate.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
+        # row_id += 1
+
+        # self.spinbox_speaking_rate = IntSpinbox(self, step_size=1, min=1, max=500, value=self.speaking_rate.get(), command=self._spinbox_callback)
+        # self.spinbox_speaking_rate.grid(row=row_id, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
+        # row_id += 1
+
+    def _set_tts_voice(self, choice):
+        if not isinstance(opts.tts_engine, texttospeech.ElevenTTS):
+            print("ElevenLabs is not the currently selected TTS engine")
+            return
+        opts.tts_engine.set_voice(choice)
+
+
+class WindowsTTSOptionsFrame(customtkinter.CTkFrame):
+    def __init__(self, master, title):
+        super().__init__(master, fg_color="transparent")
+        self.title = title
+        self.grid_columnconfigure(0, weight=1)
+
+        self.title = customtkinter.CTkLabel(
+            self, text=self.title, fg_color="gray20", corner_radius=4)
+        self.title.grid(row=0, column=0, columnspan=3, padx=10, pady=(10,0), sticky="ew")
+
+        self.voices = []
+
+        if not isinstance(opts.tts_engine, texttospeech.WindowsTTS):
+            self.label_error = customtkinter.CTkLabel(self, text="Windows is not the currently selected TTS engine.", fg_color="transparent")
+            self.label_error.grid(row=1, column=0, sticky="ew", pady=(4,1), padx=5)
+            return
+
+        for voice in opts.tts_engine.voices: 
+            self.voices.append(voice.name)
+
+        self.selected_wtts_voice_name = customtkinter.StringVar(value=self.voices[opts.windows_tts_voice_id])
+        self.speaking_rate = customtkinter.IntVar(value=opts.tts_engine.rate)
+
+        row_id = 1
+
+        self.label_wtts_voice = customtkinter.CTkLabel(self, text="Voice Name: ", fg_color="transparent")
+        self.label_wtts_voice.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
+        row_id += 1
+
+        self.dropdown_tts_voice_select = customtkinter.CTkOptionMenu(self, dynamic_resizing=False, variable=self.selected_wtts_voice_name, values=self.voices, command=self._set_tts_engine)
+        self.dropdown_tts_voice_select.grid(row=row_id, column=0, sticky="ew", padx=10, pady=(0,10))
+        row_id += 1
+
+        self.label_speaking_rate = customtkinter.CTkLabel(self, text="Speaking Rate: ", fg_color="transparent")
+        self.label_speaking_rate.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
+        row_id += 1
+
+        self.spinbox_speaking_rate = IntSpinbox(self, step_size=1, min=1, max=500, value=self.speaking_rate.get(), command=self._spinbox_callback)
+        self.spinbox_speaking_rate.grid(row=row_id, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
+        row_id += 1
+    
+    def _set_tts_engine(self, choice):
+        if not isinstance(opts.tts_engine, texttospeech.WindowsTTS):
+            print("Windows is not the currently selected TTS engine")
+            return
+        try:
+            index = self.voices.index(choice)
+            opts.windows_tts_voice_id = index
+            opts.tts_engine.set_voice(index)
+            print(f"Set TTS Engine to {self.voices[index]}")
+        except ValueError:
+            print("Invalid selection: " + choice)
+
+    def _spinbox_callback(self):
+        if not isinstance(opts.tts_engine, texttospeech.WindowsTTS):
+            print("Windows is not the currently selected TTS engine")
+            return
+        opts.tts_engine.set_rate(self.spinbox_speaking_rate.get())
+        # verbose_print(f"Set WTTS speaking rate to {opts.tts_engine.rate}")
+
+
+class GCloudOptionsFrame(customtkinter.CTkFrame):
+    def __init__(self, master, title):
+        super().__init__(master, fg_color="transparent")
+        self.title = title
+        self.grid_columnconfigure(0, weight=1)
+
+        self.textfields = []
+        self.language_codes = {}
+        self.voices = {}
+        
+        self.title = customtkinter.CTkLabel(
+            self, text=self.title, fg_color="gray20", corner_radius=4)
         self.title.grid(row=0, column=0, columnspan=3, padx=10, pady=(10,0), sticky="ew")
         
         self.gcloud_language_code_var = customtkinter.StringVar(self, value=opts.gcloud_language_code)
@@ -592,25 +856,40 @@ class App(customtkinter.CTk):
         self.grid_rowconfigure(0, weight=0)
         self.grid_rowconfigure(1, weight=1)
 
-        cols=0
+        column_id = 0
+        row_id = 0
+
+        # self.gcloud_frame = GCloudOptionsFrame(self, "GCloud TTS Configuration")
+        # self.gcloud_frame.grid(row=1, column=cols, padx=(10,0), pady=(10, 10), sticky="nsew")
+        self.tts_selector_frame = TTSSelectorFrame(self, "TTS Selection")
+        self.tts_selector_frame.grid(row=row_id, column=column_id, padx=(10,0), pady=(10, 0), sticky="nsew")
+        self.tts_selector_frame._set_tts_engine(opts.tts_engine_name)
+        row_id += 1
 
         self.program_bools_frame = ProgramOptionsFrame(self, "Program Options")
-        self.program_bools_frame.grid(row=0, column=cols, padx=(10,0), pady=(10, 0), sticky="nsew")
+        self.program_bools_frame.grid(row=row_id, column=column_id, padx=(10,0), pady=(10, 10), sticky="nsew")
+        row_id += 1
         
-        self.gcloud_frame = GCloudOptionsFrame(self, "GCloud TTS Configuration")
-        self.gcloud_frame.grid(row=1, column=cols, padx=(10,0), pady=(10, 10), sticky="nsew")
-        cols += 1
+        column_id += 1
+        row_id = 0
 
         self.audio_stuff_frame = AudioStuffFrame(self, "Audio Configuration")
-        self.audio_stuff_frame.grid(row=0, column=cols, padx=(10,0), pady=(10, 0), sticky="nsew")
+        self.audio_stuff_frame.grid(row=row_id, column=column_id, padx=(10,0), pady=(10, 0), sticky="nsew")
+        row_id += 1
 
         self.keyboard_control_frame = KeyboardControlFrame(self, "Trigger Key Configuration")
-        self.keyboard_control_frame.grid(row=1, column=cols, padx=(10,0), pady=(10, 10), sticky="nsew")
-        cols += 1
+        self.keyboard_control_frame.grid(row=row_id, column=column_id, padx=(10,0), pady=(10, 10), sticky="nsew")
+        row_id += 1
+        
+        column_id += 1
+        row_id = 0
 
         self.ai_stuff_frame = AIStuffFrame(self, "AI Configuration")
-        self.ai_stuff_frame.grid(row=0, rowspan=2, column=cols, padx=(10,0), pady=(10, 10), sticky="nsew")
-        cols += 1
+        self.ai_stuff_frame.grid(row=row_id, rowspan=2, column=column_id, padx=(10,10), pady=(10, 10), sticky="nsew")
+        row_id += 1
+
+        column_id += 1
+        row_id = 0
 
         self.protocol("WM_DELETE_WINDOW",  self.on_close)
 

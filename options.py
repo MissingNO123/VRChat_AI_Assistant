@@ -1,5 +1,7 @@
 from pynput.keyboard import Key
 
+#To be honest this file should've been called variables.py
+
 # OPTIONS ####################################################################################################################################
 verbosity = False
 chatbox = True
@@ -17,9 +19,16 @@ in_dev_name = "VoiceMeeter Aux Output"  # Input  (mic)
 out_dev_name = "VoiceMeeter Aux Input"  # Output (tts)
 
 tts_engine = None
+tts_engine_name = "Google Translate"
+tts_engine_selections = ["Windows", "Google Cloud", "Google Translate", "ElevenLabs", "TikTok"]
 
-# elevenVoice = 'Bella'                # Voice to use with 11.ai
-elevenVoice = 'rMQzVEcycGrNzwMhDeq8'   # The Missile Guidance System
+windows_tts_voice_id = 0
+
+eleven_voice_id = 'Phillip'
+
+tiktok_voice_id = "English US Female"
+
+gtrans_language_code = "en"
 
 gcloud_language_code = 'en-US'
 gcloud_voice_name = f'{gcloud_language_code}-Standard-F'

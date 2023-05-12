@@ -29,7 +29,6 @@ import uistuff as ui
 
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
-# eleven = ElevenLabs(os.getenv('ELEVENLABS_API_KEY'))
 
 # OPTIONS ####################################################################################################################################
 CHUNK_SIZE = 1024           # number of frames read at a time
@@ -52,7 +51,11 @@ silence_timeout_timer = None
 
 key_press_window_timeup = time.time()
 
-opts.tts_engine = ttsutils.WindowsTTS()
+# opts.tts_engine = ttsutils.WindowsTTS()
+# opts.tts_engine = ttsutils.GoogleCloudTTS()
+opts.tts_engine = ttsutils.GoogleTranslateTTS()
+# opts.tts_engine = ttsutils.eleven
+# opts.tts_engine = ttsutils.TikTokTTS()
 
 # Constants
 pyAudio = pyaudio.PyAudio()
@@ -201,10 +204,10 @@ def whisper_transcribe(recording):
 
     with whisper_lock:
         start_time = time.perf_counter()
-        audio = ffmpeg_for_whisper(recording)
+        # audio = ffmpeg_for_whisper(recording) # This adds 500ms of latency with no apparent benefit 
         # Initialize transcription object on the recording
         segments, info = model.transcribe(
-            audio, beam_size=5, initial_prompt=opts.whisper_prompt, no_speech_threshold=0.4, log_prob_threshold=0.8)
+            recording, beam_size=5, initial_prompt=opts.whisper_prompt, no_speech_threshold=0.4, log_prob_threshold=0.8)
 
         verbose_print(f'lang: {info.language}, {info.language_probability * 100:.1f}%')
 
@@ -339,7 +342,7 @@ def cut_up_text(text):
     list = []
     for i, segment in enumerate(segments):
         audio = opts.tts_engine.tts(ttsutils.filter(segment))
-        if i is not len(segments) - 1:
+        if ( i is not len(segments) - 1 ) and ( opts.tts_engine is not ttsutils.eleven ):
             audio = clip_audio_end(audio)
         list.append((segment, audio))
     # and then
@@ -365,86 +368,6 @@ def tts(text):
     audioBytes.close()
     speaking = False
 
-# def synthesize_text(text, filename):
-#     # filename = filename[0:filename.rfind('.')]
-#     # eleven_synthesize_text(text, filename)
-#     gcloud_synthesize_text(text, filename)
-
-
-# def tts_gtrans(text, filename='tts.wav', language='en'):
-#     """ Returns speech from text using google API """
-#     filtered_text = ttsutils.filter(text)
-#     start_time = time.perf_counter()
-#     tts = gTTS(filtered_text, lang=language)
-#     tts.save('tts.mp3')
-#     end_time = time.perf_counter()
-#     verbose_print(f'--gTTS took {end_time - start_time:.3f}s')
-#     to_wav('tts.mp3', 1.3)
-#     play_sound('tts.wav')
-
-
-def tts_windows(text, filename='tts.wav'):
-    wtts = ttsutils.WindowsTTS()
-    audio = wtts.tts("test")
-
-
-
-def tts_google(text, filename='tts.wav'):
-    global panic
-    audioBytes = ttsutils.GoogleCloudTTS.tts(text)
-    if audioBytes == None:
-        panic = True
-        return
-    play_sound(audioBytes)
-
-
-# def tts_eleven(text):
-#     """ Returns speech from text using Eleven Labs API """
-#     audioBytes = ttsutils.eleven.tts(text)
-#     audioWav = to_wav_bytes(audioBytes)
-#     play_sound(audioWav)
-
-
-# def eleven_synthesize_text(text, filename):
-#     """ Calls Eleven Labs API to synthesize speech from the input string of text and writes it to a wav file """
-#     # filename = filename.split('.')[0]
-#     verbose_print(f'--Synthesizing {text} from 11.ai...')
-#     filtered_text = ttsutils.filter(text)
-#     voice = eleven.voices[opts.elevenVoice]
-#     audio = voice.generate(filtered_text)
-#     audio.save(filename)
-#     to_wav(f'{filename}.mp3')
-
-
-# def gcloud_synthesize_text(text, filename='tts.wav'):
-#     """ Calls Google Cloud API to synthesize speech from the input string of text and writes it to a wav file """
-#     global panic
-#     filtered_text = ttsutils.filter(text)
-#     client = texttospeech.TextToSpeechClient()
-#     input_text = texttospeech.SynthesisInput(text=filtered_text)
-#     voice = texttospeech.VoiceSelectionParams(
-#         language_code=opts.gcloud_language_code,
-#         name=opts.gcloud_voice_name,
-#         ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
-#     )
-#     audio_config = texttospeech.AudioConfig(
-#         audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-#         speaking_rate=1.15,
-#         pitch=-1.0
-#     )
-#     try:
-#         response = client.synthesize_speech(
-#             request={"input": input_text, "voice": voice,
-#                     "audio_config": audio_config}
-#         )
-#     except Exception as e:
-#         print(e)
-#         panic = True
-#         return
-
-#     with open(filename, "wb") as out:
-#         out.write(response.audio_content)
-
 
 def to_wav(file, speed=1.0):
     """ Turns an .mp3 file into a .wav file (and optionally speeds it up) """
@@ -463,14 +386,15 @@ def to_wav(file, speed=1.0):
         raise RuntimeError(f"Failed to convert audio: {e.stderr}") from e
 
 
-   
-
 def detect_silence(wf):
     """ Detects the duration of silence at the end of a wave file """
     threshold = 1024
     channels = wf.getnchannels()
     frame_rate = wf.getframerate()
     n_frames = wf.getnframes()
+    if n_frames == 2147483647: 
+        verbose_print("!!Something went bad trying to detect silence")
+        return 0.0
     duration = n_frames / frame_rate
 
     # set the position to the end of the file
@@ -508,7 +432,7 @@ def detect_silence(wf):
         return 0.0
 
 
-def clip_audio_end(audio_bytes: BytesIO, trim = 0.400) -> BytesIO:
+def clip_audio_end(audio_bytes: BytesIO) -> BytesIO:
     """Trims the end of audio in a BytesIO object"""
     audio_bytes.seek(0)
     with wave.open(audio_bytes, mode='rb') as wf:
@@ -704,14 +628,6 @@ def init_audio():
 
     end_time = time.perf_counter()
     verbose_print(f'--Audio initialized in {end_time - start_time:.5f}s')
-
-
-def receiveCheckboxes(checkboxes):
-    opts.verbosity = checkboxes[0]
-    opts.chatbox = checkboxes[1]
-    opts.parrot_mode = checkboxes[2]
-    opts.soundFeedback = checkboxes[3]
-    opts.audio_trigger_enabled = checkboxes[4]
 
 
 # Program Setup #################################################################################################################################
