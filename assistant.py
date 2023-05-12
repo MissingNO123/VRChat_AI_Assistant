@@ -305,9 +305,9 @@ def chatgpt_req(text):
         # tts(result, 'en')
         # vrc_chatbox('🛰 Getting TTS from 11.ai...')
         if opts.chatbox and len(result) > 140:
-            cut_up_text(f'💬{result}')
+            cut_up_text(f'🤖{result}')
         else:
-            vrc_chatbox(f'💬{result}')
+            vrc_chatbox(f'🤖{result}')
             tts(result)
     except openai.APIError as e:
         err = e
@@ -530,10 +530,10 @@ def handle_command(command):
                 f'./prebaked_tts/Parrotmodeisnow{"on" if opts.parrot_mode else "off"}.wav')
 
         case 'thesenutsinyourmouth':
-            vrc_chatbox('💬 Do you like Imagine Dragons?')
+            vrc_chatbox('🤖 Do you like Imagine Dragons?')
             play_sound('./prebaked_tts/DoyoulikeImagineDragons.wav')
             time.sleep(3)
-            vrc_chatbox('💬 Imagine Dragon deez nuts across your face 😈')
+            vrc_chatbox('🤖 Imagine Dragon deez nuts across your face 😈')
             play_sound('./prebaked_tts/ImagineDragondeeznutsacrossyourface.wav')
 
         # If an exact match is not confirmed, this last case will be used if provided
