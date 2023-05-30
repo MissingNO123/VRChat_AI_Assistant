@@ -1,10 +1,16 @@
-import math
 import os
+import sys
+import threading
+import time
 from typing import Optional, Union, Callable
 import customtkinter
-import options as opts
+
 import texttospeech
-import sys
+import options as opts
+import functions as funcs
+import vrcutils as vrc
+import chatgpt
+
 
 """
 Frame 1: Program Options ✓
@@ -43,6 +49,9 @@ Frame 5: TTS Settings
             ✓ Speech Rate (spinbox)
         ✓ TikTok
             ✓ Voice Name (dropdown)
+Frame 6: Direct Text Input
+    - Text Box
+    - Send Button
 """
 
 app = None
@@ -110,6 +119,8 @@ class AIStuffFrame(customtkinter.CTkFrame):
             self, text=self.title, fg_color="gray30", corner_radius=6)
         self.title.grid(row=0, column=0, columnspan=3, padx=10, pady=(10,0), sticky="ew")
 
+        self.manual_entry_window_is_open = customtkinter.BooleanVar(value=False)
+        
         self.whisper_prompt = customtkinter.StringVar(value=opts.whisper_prompt)
         self.selected_whisper_model = customtkinter.StringVar(value=opts.whisper_model)
         self.gpt_radio_var = customtkinter.IntVar(value=0 if opts.gpt == "GPT-3.5-Turbo" else 1)
@@ -149,11 +160,17 @@ class AIStuffFrame(customtkinter.CTkFrame):
         self.textbox_system_prompt = customtkinter.CTkTextbox(self, height=122, wrap="word")
         self.textbox_system_prompt.insert("0.0", opts.system_prompt)
         self.textbox_system_prompt.grid(row=12, column=0, columnspan=3, sticky="ew", padx=10, pady=(0,2))
-        self.button_system_prompt = customtkinter.CTkButton(self, text="Update System Prompt", command=self._set_variables)
-        self.button_system_prompt.grid(row=13, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
+        # self.button_system_prompt = customtkinter.CTkButton(self, text="Update System Prompt", command=self._set_variables)
+        # self.button_system_prompt.grid(row=13, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
 
         self.button_reset = customtkinter.CTkButton(self, text="Clear Message History", command=self._reset_chat_buffer)
-        self.button_reset.grid(row=14, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
+        self.button_reset.grid(row=13, column=0, columnspan=3, sticky="ew", padx=10, pady=10)
+
+        self.button_spawn_chat_box = customtkinter.CTkButton(self, text="Open Conversation Window", command=self._spawn_manual_entry)
+        self.button_spawn_chat_box.grid(row=14, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
+
+        self.textbox_system_prompt.bind("<FocusOut>", self._set_variables)
+        self.textbox_system_prompt.bind("<Return>", self._set_variables)
 
         self.textfield_whisper_prompt.bind("<FocusOut>", self._set_variables)
         self.textfield_whisper_prompt.bind("<Return>", self._set_variables)
@@ -177,6 +194,17 @@ class AIStuffFrame(customtkinter.CTkFrame):
         self.popup = Popup(self, window_title="Restart Required",
                            window_text="Please restart the program to reload the whisper model", button_text="OK")
         self.popup.after(250, self.popup.focus) # Why do I need to wait for this???
+
+    def _spawn_manual_entry(self):
+        if self.manual_entry_window_is_open.get() == False:
+            self.manual_entry_window = ManualTextEntryWindow(self, "Current Conversation")
+            self.manual_entry_window.protocol("WM_DELETE_WINDOW", self._manual_entry_closed)
+            self.manual_entry_window_is_open.set(True)
+        self.manual_entry_window.after(250, self.manual_entry_window.focus) # Why do I need to wait for this???
+    
+    def _manual_entry_closed(self):
+        self.manual_entry_window_is_open.set(False)
+        self.manual_entry_window.destroy()
 
     def _set_variables(self, event=None):
         opts.system_prompt = self.textbox_system_prompt.get("0.0", "end")
@@ -596,7 +624,7 @@ class GCloudOptionsFrame(customtkinter.CTkFrame):
         self.title.grid(row=0, column=0, columnspan=3, padx=10, pady=(10,0), sticky="ew")
         
         self.gcloud_language_code_var = customtkinter.StringVar(self, value=opts.gcloud_language_code)
-        self.gcloud_voice_name_var = customtkinter.StringVar(self, value="Standard-F")
+        self.gcloud_voice_name_var = customtkinter.StringVar(self, value=f"{opts.gcloud_tts_type}-{opts.gcloud_letter_id}")
 
         row_id = 1
 
@@ -623,6 +651,125 @@ class GCloudOptionsFrame(customtkinter.CTkFrame):
     def _update_gcloud(self, event=None):
         opts.gcloud_language_code = self.gcloud_language_code_var.get()
         opts.gcloud_voice_name = f'{self.gcloud_language_code_var.get()}-{self.gcloud_voice_name_var.get()}'
+
+
+class ManualTextEntryWindow(customtkinter.CTkToplevel):
+    def __init__(self, master, title):
+        super().__init__(master)
+        app.update_idletasks()
+        screenw = app.winfo_screenwidth()
+        w = 600
+        h = 630
+        x = app.winfo_x()+app.winfo_width()
+        y = app.winfo_y()
+        if x+w >= screenw: x = screenw - w
+        self.geometry(f"{w}x{h}+{x}+{y}")
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure((0,2), weight=0)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=0)
+        self.iconbitmap(icon)
+        self.title = title
+
+        self.generating = False
+        self.result = None
+
+        self.title = customtkinter.CTkLabel(
+            self, text=self.title, fg_color="gray30", corner_radius=6)
+        self.title.grid(row=0, column=1, columnspan=2, padx=10, pady=(10,0), sticky="ew")
+
+        # Frame Variables
+        self.text_entry = customtkinter.StringVar(value="")
+        # self.chat_history = customtkinter.StringVar(value="")
+
+        self.button_reset = customtkinter.CTkButton(self, text="Clear", width=80, command=self._reset_chat_buffer)
+        self.button_reset.grid(row=0, column=0, sticky="w", padx=(10,0), pady=(10,0))
+
+        row_id = 1
+
+        self.textbox_temp_chat_history = customtkinter.CTkTextbox(self, height=300, wrap="word")
+        self.refresh_messages()
+        self.textbox_temp_chat_history.grid(row=row_id, column=0, columnspan=3, sticky="nsew", padx=10, pady=10)
+        row_id += 1
+
+        self.textfield_text_entry = customtkinter.CTkEntry(self, width=200, placeholder_text="Enter Message...", textvariable=self.text_entry)
+        self.textfield_text_entry.grid(row=row_id, column=0, columnspan=2, sticky="ew", padx=10, pady=2)
+
+        self.button_send = customtkinter.CTkButton(self, text="Send", command=self._start_send)
+        self.button_send.grid(row=row_id, column=2, sticky="e", padx=(2,10), pady=10)
+
+        self.textfield_text_entry.bind("<Return>", self._start_send)
+
+    def refresh_messages(self):
+        message_history_str = "\n---\n".join(
+            f'{"User" if message["role"] == "user" else "ChatGPT"}: {message["content"]}' 
+            for message in opts.message_array
+            )
+        self.textbox_temp_chat_history.delete("0.0", "end")
+        self.addtext(message_history_str)
+
+    def addtext(self, text):
+        self.textbox_temp_chat_history.insert("end", text)
+        self.textbox_temp_chat_history.see("end")
+
+    def _reset_chat_buffer(self):
+        self.textbox_temp_chat_history.delete("0.0", "end")
+        self.addtext("Messages cleared!\n")
+        opts.message_array = []
+        print(f'$ Messages cleared!')
+
+
+    def _start_send(self, event=None):
+        if self.generating: return
+        user_text = self.text_entry.get().strip()
+        if len(user_text) > 0:
+            print(f'\nUser: {user_text}')
+            self.text_entry.set("")
+            self.addtext("\n---\nUser: " + user_text)
+            # generate_thread = threading.Thread(target=self._generate, args=(user_text=user_text,))
+            generate_thread = threading.Thread(target=self._generate, args=(user_text,))
+            generate_thread.start()
+
+    def _generate(self, user_text, *args, **kwargs):
+        self.generating = True
+        self.button_send.configure(text="Wait...", state="disabled")
+        self.textfield_text_entry.configure(state="disabled")
+        start_time = time.perf_counter()
+        completion = chatgpt.get_completion(user_text)
+        completion_text = ''
+        print("\n>ChatGPT: ", end='')
+        self.addtext("\n---\nChatGPT: ")
+        for chunk in completion:
+            event_text = ''
+            chunk_message = chunk['choices'][0]['delta']  # extract the message
+            if chunk_message.get('content'):
+                event_text = chunk_message['content']
+            print(event_text, end='')
+            sys.stdout.flush()
+            self.addtext(event_text)
+            completion_text += event_text  # append the text
+        end_time = time.perf_counter()
+        print()
+        funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
+        self.result = completion_text
+        if len(self.result):
+            opts.message_array.append({"role": "assistant", "content": self.result})
+        self.generating = False
+        self._end_send()
+
+    def _end_send(self):
+        if self.result is None or len(self.result) == 0: 
+            funcs.v_print("!!No text returned from ChatGPT")
+        else:
+            if opts.chatbox and len(self.result) > 140:
+                funcs.cut_up_text(self.result)
+            else:
+                text = '🤖 ' + self.result
+                vrc.chatbox(f'{text}')
+                funcs.tts(self.result)
+        self.textfield_text_entry.configure(state="normal")
+        self.button_send.configure(text="Send", state="normal")
+        self.refresh_messages()
 
 
 class Popup(customtkinter.CTkToplevel):

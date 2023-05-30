@@ -39,6 +39,7 @@ def to_wav_bytes(file, speed=1.0):
 def filter(string):
     """ Makes words in input string pronuncable by TTS """
     replacements = {
+        '```': 'code.',
         '`': '',
         '💬': '',
         '🤖':'',
@@ -88,6 +89,7 @@ class GoogleTranslateTTS():
 
     def tts(self, text):
         """ Returns speech from text using Google Translate API """
+        if text == '': return
         start_time = time.time()
         filtered_text = filter(text)
         output = BytesIO()

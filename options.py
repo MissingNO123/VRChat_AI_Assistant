@@ -31,13 +31,19 @@ tiktok_voice_id = "English US Female"
 gtrans_language_code = "en"
 
 gcloud_language_code = 'en-US'
-gcloud_voice_name = f'{gcloud_language_code}-Standard-F'
+gcloud_tts_type = "Neural2"
+gcloud_letter_id = "F"
+gcloud_voice_name = f'{gcloud_language_code}-{gcloud_tts_type}-{gcloud_letter_id}'
 
 THRESHOLD = 1024            # adjust this to set the minimum volume threshold to start/stop recording
 MAX_RECORDING_TIME = 30     # maximum recording time in seconds
 SILENCE_TIMEOUT = 2         # timeout in seconds for detecting silence
 OUTPUT_FILENAME = 'recording.wav'
 LOOP = True 
+
+trigger = False
+speaking = False
+panic = False
 
 message_array = [] # List of messages sent back and forth between ChatGPT / User, can be initialized with example messages
 
@@ -46,7 +52,10 @@ message_array = [] # List of messages sent back and forth between ChatGPT / User
 # system_prompt = "You are an Artificial Intelligence in the VR social platform VRChat. Inside the game you take on the appearance of a player that other players can talk to. You can make conversation with people and answer their questions. If someone insults you, you are to dismiss them. Only reply in one sentence if possible."
 
 # Assistant System Prompt
-system_prompt = "You are an AI powered voice activated assistant. You are talking to a user. The user will talk directly to you, and you are able to reply back using text to speech. You can answer the user's questions to the best of your knowlege, but if you are unsure about something you must tell them you do not know enough about the subject. You reply in only one sentence if possible."
+# system_prompt = "You are an AI powered voice activated assistant. You are talking to a user. The user will talk directly to you using speech recognition, and you are able to reply back using text to speech. You can answer the user's questions to the best of your knowlege, but if you are unsure about something you must truthfully answer that you do not know. You reply in one sentence."
+
+# Rubber Duck System Prompt
+system_prompt = "You are an AI whos purpose is to be a Programmer's Rubber Duck. The programmer will talk to you using speech recognition and you are able to reply back using text to speech. You provide help and support to the distressed programmer as they try to write their code. You can also offer suggestions to improve the code if you know how. Your replies are brief."
 
 # Roomba System Prompt
 #system_prompt = "You are an AI powered robot vacuum. You are currently cleaning a user's house. You are able to vacuum their floors, and you are also able to reply to the user using text to speech. You can answer the user's questions to the best of your knowlege, but you must focus on the important task at hand to vacuum floors. You reply in only one sentence if possible."
