@@ -1,4 +1,5 @@
 from pynput.keyboard import Key
+import os
 
 #To be honest this file should've been called variables.py
 
@@ -7,12 +8,12 @@ verbosity = False
 chatbox = True
 parrot_mode = False
 whisper_prompt = "Hello, I am playing VRChat."
-whisper_model = "base.en"
+whisper_model = "base"
 soundFeedback = True            # Play sound feedback when recording/stopped/misrecognized
 audio_trigger_enabled = False   # Trigger voice recording on volume threshold
 key_trigger_key = Key.ctrl_r    # What key to double press to trigger recording
 key_press_window = 0.400        # How fast should you double click the key to trigger voice recording
-gpt = "GPT-4"                   # GPT-3.5-Turbo-0301 | GPT-4
+gpt = "GPT-4"                   # GPT-3 | GPT-4
 max_tokens = 200                # Max tokens that openai will return
 max_conv_length = 10            # Max length of conversation buffer
 in_dev_name = "VoiceMeeter Aux Output"  # Input  (mic)
@@ -63,3 +64,14 @@ system_prompt = "You are an AI whos purpose is to be a Programmer's Rubber Duck.
 # Insult system prompt
 # system_prompt = "You are an AI powered voice activated insult machine named BratGPT. The user will talk directly to you, and you insult them no matter what they say. You only ever insult them, and do not say anything else. You talk like a catgirl with a hostile and condescending demeanor. You reply in only one sentence if possible."
 
+config_file = os.path.join(os.path.dirname(__file__), 'config.json')
+
+def save_config():
+    raise NotImplementedError
+    with open (config_file) as config:
+        pass
+
+def load_config():
+    raise NotImplementedError
+    with open (config_file) as config:
+        pass
