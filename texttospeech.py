@@ -14,6 +14,7 @@ import options as opts
 from dotenv import load_dotenv
 load_dotenv()
 
+empty_audio = BytesIO(b"\x52\x49\x46\x46\x52\x49\x00\x00\x57\x41\x56\x45\x66\x6d\x74\x20\x10\x00\x00\x00\x01\x00\x01\x00\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00\x64\x61\x74\x61\x00\x00\x00\x00")
 
 def verbose_print(text):
     if opts.verbosity:
@@ -48,7 +49,7 @@ def filter(string):
         'missingno': 'missing no',
         'missingo123': 'missing no one two three',
         'vrchat': 'VR Chat',
-        'nya': 'nyaah'
+        'nya': 'nyaa'
     }
     for word, replacement in replacements.items():
         word_pattern = re.escape(word)
@@ -66,6 +67,7 @@ class WindowsTTS():
    
     def tts(self, text):
         """ Returns speech from text using Windows API """
+        if text == '': return empty_audio
         audio = BytesIO()
         self.ttsEngine.save_to_file(filter(text), 'tts.wav')
         self.ttsEngine.runAndWait()
@@ -89,7 +91,7 @@ class GoogleTranslateTTS():
 
     def tts(self, text):
         """ Returns speech from text using Google Translate API """
-        if text == '': return
+        if text == '': return empty_audio
         start_time = time.time()
         filtered_text = filter(text)
         output = BytesIO()
@@ -125,6 +127,7 @@ class GoogleCloudTTS():
         if not self.ready:
             print("Google Cloud TTS engine is not ready!")
             return None
+        if text == '': return empty_audio
         start_time = time.perf_counter()
         filtered_text = filter(text)
         input_text = texttospeech.SynthesisInput(text=filtered_text)
@@ -157,6 +160,7 @@ class TikTokTTS():
         self.rate_limit = 9999
 
     def tts(self, text):
+        if text == '': return empty_audio
         request = self._request(
             "POST",
             {
@@ -224,6 +228,7 @@ class ElevenTTS(ElevenLabs):
         if not self.ready:
             print("ElevenLabs TTS engine is not ready!")
             return None
+        if text == '': return empty_audio
         verbose_print('--Getting TTS from 11.ai...')
         start_time = time.perf_counter()
         if self.selected_voice is None:
