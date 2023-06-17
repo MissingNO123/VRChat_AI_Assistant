@@ -123,7 +123,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
         
         self.whisper_prompt = customtkinter.StringVar(value=opts.whisper_prompt)
         self.selected_whisper_model = customtkinter.StringVar(value=opts.whisper_model)
-        self.gpt_radio_var = customtkinter.IntVar(value=0 if opts.gpt == "GPT-3.5-Turbo" else 1)
+        self.gpt_radio_var = customtkinter.IntVar(value=0 if opts.gpt == "GPT-3" else 1)
         self.max_tokens_var = customtkinter.IntVar(value=opts.max_tokens)
         self.max_conv_length_var = customtkinter.IntVar(value=opts.max_conv_length)
         self.sytem_prompt_var = customtkinter.StringVar(value=opts.system_prompt)
@@ -140,7 +140,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
 
         self.label_gpt_picker = customtkinter.CTkLabel(self, text="OpenAI GPT Model: ", fg_color="transparent")
         self.label_gpt_picker.grid(row=5, column=0, sticky="w", pady=(4,1), padx=5)
-        self.radiobutton_gpt_3 = customtkinter.CTkRadioButton(self, text="GPT-3.5-Turbo", command=self._set_variables, variable=self.gpt_radio_var, value=0)
+        self.radiobutton_gpt_3 = customtkinter.CTkRadioButton(self, text="GPT-3", command=self._set_variables, variable=self.gpt_radio_var, value=0)
         self.radiobutton_gpt_3.grid(row=6, column=0, padx=10)
         self.radiobutton_gpt_4 = customtkinter.CTkRadioButton(self, text="GPT-4", command=self._set_variables, variable=self.gpt_radio_var, value=1)
         self.radiobutton_gpt_4.grid(row=6, column=1)
@@ -176,7 +176,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
         self.textfield_whisper_prompt.bind("<Return>", self._set_variables)
 
     def update_radio_buttons(self):
-        value = 0 if opts.gpt == "GPT-3.5-Turbo" else 1
+        value = 0 if opts.gpt == "GPT-3" else 1
         self.gpt_radio_var.set(value)
 
     def _reset_chat_buffer(self):
@@ -209,7 +209,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
     def _set_variables(self, event=None):
         opts.system_prompt = self.textbox_system_prompt.get("0.0", "end")
         value = self.gpt_radio_var.get()
-        opts.gpt = "GPT-3.5-Turbo" if value == 0 else "GPT-4"
+        opts.gpt = "GPT-3" if value == 0 else "GPT-4"
         opts.whisper_prompt = self.whisper_prompt.get()
         opts.max_tokens = int( self.max_tokens_var.get() )
         opts.max_conv_length = int( self.spinbox_max_conv_length.get() )
@@ -723,48 +723,57 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
         if self.generating: return
         user_text = self.text_entry.get().strip()
         if len(user_text) > 0:
+            self.button_send.configure(text="Wait...", state="disabled")
+            self.textfield_text_entry.configure(state="disabled")
             print(f'\nUser: {user_text}')
             self.text_entry.set("")
             self.addtext("\n---\nUser: " + user_text)
             # generate_thread = threading.Thread(target=self._generate, args=(user_text=user_text,))
-            generate_thread = threading.Thread(target=self._generate, args=(user_text,))
-            generate_thread.start()
+            if opts.parrot_mode:
+                self.result = user_text
+                self._end_send()
+            else:
+                generate_thread = threading.Thread(target=self._generate, args=(user_text,))
+                generate_thread.start()
 
     def _generate(self, user_text, *args, **kwargs):
         self.generating = True
-        self.button_send.configure(text="Wait...", state="disabled")
-        self.textfield_text_entry.configure(state="disabled")
+        self.result = None
         start_time = time.perf_counter()
-        completion = chatgpt.get_completion(user_text)
-        completion_text = ''
-        print("\n>ChatGPT: ", end='')
-        self.addtext("\n---\nChatGPT: ")
-        for chunk in completion:
-            event_text = ''
-            chunk_message = chunk['choices'][0]['delta']  # extract the message
-            if chunk_message.get('content'):
-                event_text = chunk_message['content']
-            print(event_text, end='')
-            sys.stdout.flush()
-            self.addtext(event_text)
-            completion_text += event_text  # append the text
-        end_time = time.perf_counter()
-        print()
-        funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
-        self.result = completion_text
-        if len(self.result):
-            opts.message_array.append({"role": "assistant", "content": self.result})
-        self.generating = False
-        self._end_send()
+        try:
+            completion = chatgpt.get_completion(user_text)
+            completion_text = ''
+            print("\n>ChatGPT: ", end='')
+            self.addtext("\n---\nChatGPT: ")
+            for chunk in completion:
+                event_text = ''
+                chunk_message = chunk['choices'][0]['delta']  # extract the message
+                if chunk_message.get('content'):
+                    event_text = chunk_message['content']
+                print(event_text, end='')
+                sys.stdout.flush()
+                self.addtext(event_text)
+                completion_text += event_text  # append the text
+            end_time = time.perf_counter()
+            print()
+            funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
+            self.result = completion_text
+            if len(self.result):
+                opts.message_array.append({"role": "assistant", "content": self.result})
+        except Exception:
+            print('Failed to generate from ChatGPT')
+        finally:
+            self.generating = False
+            self._end_send()
 
     def _end_send(self):
         if self.result is None or len(self.result) == 0: 
-            funcs.v_print("!!No text returned from ChatGPT")
+            funcs.v_print("!!No text to speak")
         else:
             if opts.chatbox and len(self.result) > 140:
                 funcs.cut_up_text(self.result)
             else:
-                text = '🤖 ' + self.result
+                text = '🤖 ' + self.result if (not opts.parrot_mode) else self.result
                 vrc.chatbox(f'{text}')
                 funcs.tts(self.result)
         self.textfield_text_entry.configure(state="normal")
