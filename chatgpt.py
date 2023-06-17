@@ -6,17 +6,21 @@ import vrcutils as vrc
 import options as opts
 import functions as funcs
 
-# 'As', 'as', ' an', 'AI', ' AI', ' language', ' model', 'model', 'sorry', ' sorry', ' :', '3', ' n', 'ya'
-logit_bias = {'1722': -100, '292': -100, '281': -100, '20185': -100, '9552': -100, '3303': -100, '2746': -100, '19849': -100, '41599': -100, '7926': -100,
-            '1058': 1, '18': 1, '299': 5, '3972': 5}
+logit_bias = {
+#   'As',        'as',       ' an',      'AI',          ' AI',        ' language',  ' model',     'model',           
+    '1722': -10, '292': -10, '281': -10, '20185': -100, '9552': -100, '3303': -100, '2746': -100, '19849': -100, 
+#   'sorry',       ' sorry',     ' :',      '3',     ' n',     'ya'
+    '41599': -100, '7926': -100, '1058': 1, '18': 1, '299': 5, '3972': 5
+    }
+
 temperature = 0.5
 frequency_penalty = 0.2
 presence_penalty = 0.5
-timeout = 30
+timeout = 20
 
 def generate(text):
     """ Sends text to OpenAI, gets the response, and returns it """
-    if len(opts.message_array) > opts.max_conv_length:  # Trim down chat buffer if it gets too long
+    while len(opts.message_array) > opts.max_conv_length:  # Trim down chat buffer if it gets too long
         opts.message_array.pop(0)
     # Add user's message to the chat buffer
     opts.message_array.append({"role": "user", "content": text})
@@ -28,11 +32,12 @@ def generate(text):
     # create object with system prompt and chat history to send to OpenAI for generation
     message_plus_system = system_prompt_object + opts.message_array
     err = None
+    gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613"
     try:
         vrc.chatbox('📡 Sending to OpenAI...')
         start_time = time.perf_counter()
         completion = openai.ChatCompletion.create(
-            model=opts.gpt.lower(),
+            model=gpt_snapshot,
             messages=message_plus_system,
             max_tokens=opts.max_tokens,
             temperature=temperature,
@@ -97,11 +102,12 @@ def get_completion(text):
     # create object with system prompt and chat history to send to OpenAI for generation
     message_plus_system = system_prompt_object + opts.message_array
     # err = None
+    gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613"
     try:
         # vrc.chatbox('📡 Sending to OpenAI...')
         # start_time = time.perf_counter()
         return openai.ChatCompletion.create(
-            model=opts.gpt.lower(),
+            model=gpt_snapshot,
             messages=message_plus_system,
             max_tokens=opts.max_tokens,
             temperature=temperature,
