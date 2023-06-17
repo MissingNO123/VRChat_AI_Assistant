@@ -3,7 +3,6 @@
 from io import BytesIO
 import sys
 import time
-# import struct
 full_start_time = time.perf_counter()
 import audioop
 from datetime import datetime
@@ -15,11 +14,7 @@ import openai
 import os
 import pyaudio
 from pynput.keyboard import Listener
-# from pythonosc import udp_client
-# from pythonosc.dispatcher import Dispatcher
-# from pythonosc.osc_server import ThreadingOSCUDPServer
 import re
-# import shutil
 import threading
 import wave
 
@@ -76,55 +71,11 @@ opts.LOOP = True
 whisper_lock = threading.Lock()
 
 
-# Functions and Class (singular) ##############################################################################################################
-# Loads an audio file, play() will play it through vb aux input
-# class AudioFile:
-#     chunk = 1024
-
-#     def __init__(self, file):
-#         """ Init audio stream """
-#         funcs.init_audio()
-#         self.wf = wave.open(file, 'rb')
-#         self.p = pyaudio.PyAudio()
-#         self.stream = self.p.open(
-#             format=self.p.get_format_from_width(self.wf.getsampwidth()),
-#             channels=self.wf.getnchannels(),
-#             rate=self.wf.getframerate(),
-#             output_device_index=vb_in,
-#             output=True
-#         )
-
-#     def play(self):
-#         """ Play entire file """
-#         data = self.wf.readframes(self.chunk)
-#         while data != b'':
-#             self.stream.write(data)
-#             data = self.wf.readframes(self.chunk)
-#             if opts.panic: break
-#         self.close()
-
-#     def close(self):
-#         """ Graceful shutdown """
-#         self.stream.close()
-#         self.p.terminate()
-
+# Functions ###################################################################################################################################
 
 def v_print(text):
     if opts.verbosity:
         print(text)
-
-
-# def play_sound(file):
-#     """ Plays a sound, waits for it to finish before continuing """
-#     audio = funcs.AudioFile(file)
-#     audio.play()
-
-
-# def play_sound_threaded(file):
-#     """ Plays a sound without blocking the main thread """
-#     audio = funcs.AudioFile(file)
-#     thread = threading.Thread(target=audio.play)
-#     thread.start()
 
 
 def save_recorded_frames(frames):
@@ -215,9 +166,8 @@ def openai_whisper_transcribe(recording):
         funcs.v_print(f"U: {result.no_speech_prob*100:.1f}%")
         # tts('I didn\'t understand that!', 'en')
         funcs.play_sound('./prebaked_tts/Ididntunderstandthat.wav')
-        vrc.set_parameter('VoiceRec_End', True)
-        vrc.set_parameter('CGPT_Result', True)
-        vrc.set_parameter('CGPT_End', True)
+        VRC_clear_prop_parameters()
+
         return None
     else:
         # otherwise, forward text to ChatGPT
@@ -242,15 +192,21 @@ def faster_whisper_transcribe(recording):
 
         funcs.v_print(f'lang: {info.language}, {info.language_probability * 100:.1f}%')
 
-        # if not speech, dont bother processing anything  
-        if info.language_probability < 0.8 or info.duration <= (opts.SILENCE_TIMEOUT + 0.3):
+        # if too short, skip
+        if info.duration <= (opts.SILENCE_TIMEOUT + 0.1):
+            vrc.chatbox('⚠ [nothing heard]')
+            if opts.soundFeedback:
+                funcs.play_sound_threaded(speech_mis)
+            VRC_clear_prop_parameters()
+            return None
+
+        # if not recognized as speech, dont bother processing anything  
+        if info.language_probability < 0.6:
             vrc.chatbox('⚠ [unintelligible]')
             if opts.soundFeedback:
                 funcs.play_sound_threaded(speech_mis)
-            funcs.play_sound('./prebaked_tts/Ididntunderstandthat.wav')
-            vrc.set_parameter('VoiceRec_End', True)
-            vrc.set_parameter('CGPT_Result', True)
-            vrc.set_parameter('CGPT_End', True)
+                funcs.play_sound('./prebaked_tts/Ididntunderstandthat.wav')
+            VRC_clear_prop_parameters()
             end_time = time.perf_counter()
             funcs.v_print(f"--Transcription failed and took: {end_time - start_time:.3f}s")
             return None
@@ -265,10 +221,8 @@ def faster_whisper_transcribe(recording):
     funcs.v_print(f"--Transcription took: {end_time - start_time:.3f}s")
 
     if text == "":
-        print ("\n>User: <Nothing was recognized?>")
-        vrc.set_parameter('VoiceRec_End', True)
-        vrc.set_parameter('CGPT_Result', True)
-        vrc.set_parameter('CGPT_End', True)
+        print ("\n>User: <Nothing was recognized>")
+        VRC_clear_prop_parameters()
         return None
 
     # print the recognized text
@@ -278,199 +232,77 @@ def faster_whisper_transcribe(recording):
     if text.lower().startswith("system"):
         command = re.sub(r'[^a-zA-Z0-9]', '', text[text.find(' ') + 1:])
         handle_command(command.lower())
-        vrc.set_parameter('VoiceRec_End', True)
-        vrc.set_parameter('CGPT_Result', True)
-        vrc.set_parameter('CGPT_End', True)
+        VRC_clear_prop_parameters()
         return None
-
-    # Repeat input if parrot mode is on 
     
+    # otherwise, return the recognized text
     else:
-        # otherwise, forward text to ChatGPT
         vrc.set_parameter('VoiceRec_End', True)
-        # vrc.chatbox('📡 Sending to OpenAI...')
         return text
-        # chatgpt_req(text)
 
 
-def chatgpt_req(text):
-    """ Sends text to OpenAI, gets the response, and puts it into the chatbox """
-    if len(opts.message_array) > opts.max_conv_length:  # Trim down chat buffer if it gets too long
-        opts.message_array.pop(0)
-    # Add user's message to the chat buffer
-    opts.message_array.append({"role": "user", "content": text})
-    # Init system prompt with date and add it persistently to top of chat buffer
-    system_prompt_object = [{"role": "system", "content":
-                           opts.system_prompt
-                           + f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M:%S %p")} Eastern Standard Time.'
-                           + f' You are using {opts.gpt} from OpenAI.'}]
-    # create object with system prompt and chat history to send to OpenAI for generation
-    message_plus_system = system_prompt_object + opts.message_array
-    err = None
-    try:
-        vrc.chatbox('📡 Sending to OpenAI...')
-        start_time = time.perf_counter()
-        completion = openai.ChatCompletion.create(
-            model=opts.gpt.lower(),
-            messages=message_plus_system,
-            max_tokens=opts.max_tokens,
-            temperature=0.5,
-            frequency_penalty=0.2,
-            presence_penalty=0.5,
-            logit_bias={'1722': -100, '292': -100, '281': -100, '20185': -100, '9552': -100, '3303': -100, '2746': -100, '19849': -100, '41599': -100, '7926': -100,
-            '1058': 1, '18': 1, '299': 5, '3972': 5}
-            # 'As', 'as', ' an', 'AI', ' AI', ' language', ' model', 'model', 'sorry', ' sorry', ' :', '3', ' n', 'ya'
-            )
-        end_time = time.perf_counter()
-        funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
-        result = completion.choices[0].message.content
-        opts.message_array.append({"role": "assistant", "content": result})
-        print(f"\n>ChatGPT: {result}")
-        return result
-    except openai.APIError as e:
-        err = e
-        print(f"!!Got API error from OpenAI: {e}")
-        return None
-    except openai.InvalidRequestError as e:
-        err = e
-        print(f"!!Invalid Request: {e}")
-        return None
-    except openai.OpenAIError as e:
-        err = e
-        print(f"!!Got OpenAI Error from OpenAI: {e}")
-        return None
-    except Exception as e:
-        err = e
-        print(f"!!Other Exception: {e}")
-        return None
-    finally:
-        if err is not None: vrc.chatbox(f'⚠ {err}')
-        vrc.set_parameter('CGPT_Result', True)
-        vrc.set_parameter('CGPT_End', True)
-        return None
+def VRC_clear_prop_parameters():
+    vrc.set_parameter('VoiceRec_End', True)
+    vrc.set_parameter('CGPT_Result', True)
+    vrc.set_parameter('CGPT_End', True)
 
 
-# def cut_up_text(text):
-#     """ Cuts text into segments of 144 chars that are pushed one by one to VRC Chatbox """
-#     # Check if text has whitespace or punctuation
-#     if re.search(r'[\s.,?!]', text):
-#         # Split the text into segments of up to 144 characters using the regex pattern
-#         segments = re.findall(
-#             r'.{1,143}(?<=\S)(?=[,.?!]?\s|$)|\b.{1,143}\b', text)
-#     else:
-#         # Split the text into chunks of up to 144 characters using list comprehension
-#         segments = [text[i:i+143] for i in range(0, len(text), 143)]
-#     i = 0
-#     list = []
-#     for i, segment in enumerate(segments):
-#         audio = opts.tts_engine.tts(ttsutils.filter(segment))
-#         if ( i is not len(segments) - 1 ) and ( (not isinstance(opts.tts_engine, ttsutils.ElevenTTS)) or (not isinstance(opts.tts_engine, ttsutils.GoogleTranslateTTS))  ):
-#             audio = clip_audio_end(audio)
-#         list.append((segment, audio))
-#     # and then
-#     opts.speaking = True
-#     for text, audio in list:
-#         audio.seek(0)
-#         vrc.chatbox(text)
-#         funcs.play_sound(audio)
-#         audio.close()
-#     opts.speaking = False
-
-
-# def tts(text):
-#     opts.speaking = True
-#     audioBytes = opts.tts_engine.tts(text)
-#     if audioBytes == None:
-#         opts.speaking = False
-#         opts.panic = True
-#         return
-#     funcs.play_sound(audioBytes)
-#     audioBytes.close()
-#     opts.speaking = False
-
-
-# def to_wav(file, speed=1.0):
-#     """ Turns an .mp3 file into a .wav file (and optionally speeds it up) """
-#     name = file[0:file.rfind('.')]
-#     name = name + '.wav'
+# def chatgpt_req(text):
+#     """ Sends text to OpenAI, gets the response, and puts it into the chatbox """
+#     if len(opts.message_array) > opts.max_conv_length:  # Trim down chat buffer if it gets too long
+#         opts.message_array.pop(0)
+#     # Add user's message to the chat buffer
+#     opts.message_array.append({"role": "user", "content": text})
+#     # Init system prompt with date and add it persistently to top of chat buffer
+#     system_prompt_object = [{"role": "system", "content":
+#                            opts.system_prompt
+#                            + f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M:%S %p")} Eastern Standard Time.'
+#                            + f' You are using {opts.gpt} from OpenAI.'}]
+#     # create object with system prompt and chat history to send to OpenAI for generation
+#     message_plus_system = system_prompt_object + opts.message_array
+#     err = None
+#     gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613"
 #     try:
+#         vrc.chatbox('📡 Sending to OpenAI...')
 #         start_time = time.perf_counter()
-#         input_stream = ffmpeg.input(file)
-#         audio = input_stream.audio.filter('atempo', speed)
-#         output_stream = audio.output(name, format='wav')
-#         ffmpeg.run(output_stream, cmd=[
-#                    "ffmpeg", "-nostdin"], capture_stdout=True, capture_stderr=True, overwrite_output=True)
+#         completion = openai.ChatCompletion.create(
+#             model=gpt_snapshot,
+#             messages=message_plus_system,
+#             max_tokens=opts.max_tokens,
+#             temperature=0.5,
+#             frequency_penalty=0.2,
+#             presence_penalty=0.5,
+#             logit_bias={'1722': -100, '292': -100, '281': -100, '20185': -100, '9552': -100, '3303': -100, '2746': -100, '19849': -100, '41599': -100, '7926': -100,
+#             '1058': 1, '18': 1, '299': 5, '3972': 5}
+#             # 'As', 'as', ' an', 'AI', ' AI', ' language', ' model', 'model', 'sorry', ' sorry', ' :', '3', ' n', 'ya'
+#             )
 #         end_time = time.perf_counter()
-#         funcs.v_print(f'--ffmpeg took {end_time - start_time:.3f}s')
-#     except ffmpeg.Error as e:
-#         raise RuntimeError(f"Failed to convert audio: {e.stderr}") from e
-
-
-# def detect_silence(wf):
-#     """ Detects the duration of silence at the end of a wave file """
-#     threshold = 1024
-#     channels = wf.getnchannels()
-#     frame_rate = wf.getframerate()
-#     n_frames = wf.getnframes()
-#     if n_frames == 2147483647: 
-#         funcs.v_print("!!Something went bad trying to detect silence")
-#         return 0.0
-#     duration = n_frames / frame_rate
-
-#     # set the position to the end of the file
-#     wf.setpos(n_frames - 1)
-
-#     # read the last frame and convert it to integer values
-#     last_frame = wf.readframes(1)
-#     last_frame_values = struct.unpack("<h" * channels, last_frame)
-
-#     # check if the last frame is silent
-#     is_silent = all(abs(value) < threshold for value in last_frame_values)
-
-#     if is_silent:
-#         # if the last frame is silent, continue scanning backwards until a non-silent frame is found
-#         while True:
-#             # move the position backwards by one frame
-#             wf.setpos(wf.tell() - 2)
-
-#             # read the current frame and convert it to integer values
-#             current_frame = wf.readframes(1)
-#             current_frame_values = struct.unpack("<h" * channels, current_frame)
-
-#             # check if the current frame is silent
-#             is_silent = all(abs(value) < threshold for value in current_frame_values)
-
-#             if not is_silent:
-#                 # if a non-silent frame is found, calculate the duration of the silence at the end
-#                 silence_duration = duration - (wf.tell() / frame_rate)
-#                 return silence_duration
-#             elif wf.tell() == 0:
-#                 # if the beginning of the file is reached without finding a non-silent frame, assume the file is silent
-#                 return duration
-#     else:
-#         # if the last frame is not silent, assume the file is not silent
-#         return 0.0
-
-
-# def clip_audio_end(audio_bytes: BytesIO) -> BytesIO:
-#     """Trims the end of audio in a BytesIO object"""
-#     audio_bytes.seek(0)
-#     with wave.open(audio_bytes, mode='rb') as wf:
-#         channels, sample_width, framerate, nframes = wf.getparams()[:4]
-#         duration = nframes / framerate
-#         silence_duration = detect_silence(wf)
-#         trimmed_length = int((duration - silence_duration + 0.050) * framerate)
-#         if trimmed_length <= 0:
-#             return BytesIO(b'RIFF\x00\x00\x00\x00WAVE')
-#         wf.setpos(0)
-#         output_bytes = BytesIO()
-#         with wave.open(output_bytes, mode='wb') as output_wf:
-#             output_wf.setnchannels(channels)
-#             output_wf.setsampwidth(sample_width)
-#             output_wf.setframerate(framerate)
-#             output_wf.writeframes(wf.readframes(trimmed_length))
-#         output_bytes.seek(0)
-#         return output_bytes
+#         funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
+#         result = completion.choices[0].message.content
+#         opts.message_array.append({"role": "assistant", "content": result})
+#         print(f"\n>ChatGPT: {result}")
+#         return result
+#     except openai.APIError as e:
+#         err = e
+#         print(f"!!Got API error from OpenAI: {e}")
+#         return None
+#     except openai.InvalidRequestError as e:
+#         err = e
+#         print(f"!!Invalid Request: {e}")
+#         return None
+#     except openai.OpenAIError as e:
+#         err = e
+#         print(f"!!Got OpenAI Error from OpenAI: {e}")
+#         return None
+#     except Exception as e:
+#         err = e
+#         print(f"!!Other Exception: {e}")
+#         return None
+#     finally:
+#         if err is not None: vrc.chatbox(f'⚠ {err}')
+#         vrc.set_parameter('CGPT_Result', True)
+#         vrc.set_parameter('CGPT_End', True)
+#         return None
 
 
 def handle_command(command):
@@ -527,7 +359,7 @@ def handle_command(command):
             sys.exit(0)
 
         case 'gpt3':
-            opts.gpt = 'GPT-3.5-Turbo'
+            opts.gpt = 'GPT-3'
             ui.app.ai_stuff_frame.update_radio_buttons()
             print(f'$ Now using {opts.gpt}')
             vrc.chatbox('Now using GPT-3.5-Turbo')
@@ -575,18 +407,6 @@ def parameter_handler(address, *args):
         funcs.v_print(f"{address}: {args} (V:{opts.trigger})")
 
 
-# def vrc_chatbox(message):
-#     """ Send a message to the VRC chatbox if enabled """
-#     if opts.chatbox:
-#         vrc_osc_client.send_message("/chatbox/input", [message, True, False])
-
-
-# def vrc_set_parameter(address, value):
-#     """ Sets an avatar parameter on your current VRC avatar """
-#     address = "/avatar/parameters/" + address
-#     vrc_osc_client.send_message(address, value)
-
-
 def check_doublepress_key(key):
     """ Check if ctrl key is pressed twice within a certain time window """
     global key_press_window_timeup
@@ -611,40 +431,6 @@ def load_whisper():
         end_time = time.perf_counter()
         funcs.v_print(f'--Whisper loaded in {end_time - start_time:.3f}s')
         # vrc.chatbox('✔️ Voice Recognition Loaded')
-
-
-# def init_audio():
-#     global vb_in
-#     global vb_out
-#     global pyAudio
-#     pyAudio = pyaudio.PyAudio()
-#     info = pyAudio.get_host_api_info_by_index(0)
-#     numdevices = info.get('deviceCount')
-#     # vrc_chatbox('🔢 Enumerating Audio Devices...')
-#     # Get VB Aux Out for Input to Whisper, and VB Aux In for mic input
-#     start_time = time.perf_counter()
-#     for i in range(numdevices):
-#         info = pyAudio.get_device_info_by_host_api_device_index(0, i)
-#         if (info.get('maxInputChannels')) > 0:
-#             if info.get('name').startswith(opts.in_dev_name):
-#                 funcs.v_print("~Found Input Device")
-#                 funcs.v_print( info.get('name') )
-#                 vb_out = i
-#         if (info.get('maxOutputChannels')) > 0: 
-#             if info.get('name').startswith(opts.out_dev_name):
-#                 funcs.v_print("~Found Output Device")
-#                 funcs.v_print( info.get('name') )
-#                 vb_in = i
-#         if vb_in is not None and vb_out is not None: break
-#     if vb_out is None:
-#         print("!!Could not find input device for mic. Exiting...")
-#         raise RuntimeError
-#     if vb_in is None:
-#         print("!!Could not find output device for tts. Exiting...")
-#         raise RuntimeError
-
-#     end_time = time.perf_counter()
-#     funcs.v_print(f'--Audio initialized in {end_time - start_time:.5f}s')
 
 
 # Program Setup #################################################################################################################################
