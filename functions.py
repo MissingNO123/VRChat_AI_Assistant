@@ -209,3 +209,10 @@ def tts(text):
     play_sound(audioBytes)
     audioBytes.close()
     opts.speaking = False
+
+
+def read_player_list():
+    raise NotImplementedError
+
+def read_player_count():
+    raise NotImplementedError
