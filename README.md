@@ -32,7 +32,9 @@ pip3 install --pre torch torchvision torchaudio --index-url https://download.pyt
 
 Python 3.8 or higher with Pip. Highly recommended to use a [venv](https://docs.python.org/3/library/venv.html).
 
-Required libraries: audioop, [python-dotenv](https://pypi.org/project/python-dotenv/), [elevenlabs](https://pypi.org/project/elevenlabs/), [faster-whisper](https://github.com/guillaumekln/faster-whisper/), [ffmpeg](https://github.com/jiashaokun/ffmpeg), [google-cloud-texttospeech](https://pypi.org/project/google-cloud-texttospeech/), [gtts](https://pypi.org/project/gTTS/), [openai](https://github.com/openai/openai-python), [pynput](https://pypi.org/project/pynput/), [python-osc](https://github.com/attwad/python-osc), [pyttsx3](https://pypi.org/project/pyttsx3/), and [customtkinter](https://github.com/TomSchimansky/CustomTkinter)
+There were recent breaking changes to the ElevenLabs library, for now you can force an old version with `pip install --force-reinstall "elevenlabs==0.1.1"`
+
+Required libraries: audioop, [python-dotenv](https://pypi.org/project/python-dotenv/), [elevenlabs v0.1.1](https://pypi.org/project/elevenlabs/), [faster-whisper](https://github.com/guillaumekln/faster-whisper/), [ffmpeg](https://github.com/jiashaokun/ffmpeg), [google-cloud-texttospeech](https://pypi.org/project/google-cloud-texttospeech/), [gtts](https://pypi.org/project/gTTS/), [openai](https://github.com/openai/openai-python), [pynput](https://pypi.org/project/pynput/), [python-osc](https://github.com/attwad/python-osc), [pyttsx3](https://pypi.org/project/pyttsx3/), and [customtkinter](https://github.com/TomSchimansky/CustomTkinter)
 
 Most likely requires an [NVidia GPU](https://new.reddit.com/r/nvidia/comments/yc6g3u/rtx_4090_adapter_burned/). Not tested with AMD, but I doubt it will work. In that case, edit the file to use CPU instead of CUDA.
 To use Faster Whisper, you need both [cuDNN](https://developer.nvidia.com/rdp/cudnn-archive) and [CUDA Toolkit 11.8](https://developer.nvidia.com/cuda-11-8-0-download-archive) in PATH. Otherwise, use OpenAI Whisper or use CPU inference.
