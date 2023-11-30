@@ -30,6 +30,11 @@ def parameter_handler(address, *args):
         funcs.v_print(f"{address}: {args} (V:{opts.trigger})")
 
 
+def clear_prop_params():
+    set_parameter('VoiceRec_End', True)
+    set_parameter('CGPT_Result', True)
+    set_parameter('CGPT_End', True)
+
 # VRC OSC init
 # Client (Sending)
 osc_client = udp_client.SimpleUDPClient(ip, inPort)
