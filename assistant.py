@@ -110,7 +110,9 @@ def save_recorded_frames(frames):
             if opts.chatbox and len(text) > 140:
                 funcs.cut_up_text(text)
             else:
-                if not opts.parrot_mode:
+                if opts.parrot_mode:
+                    text = '💬 ' + text
+                else:
                     text = '🤖 ' + text
                 vrc.chatbox(f'{text}')
                 funcs.tts(text)
@@ -166,7 +168,7 @@ def openai_whisper_transcribe(recording):
         funcs.v_print(f"U: {result.no_speech_prob*100:.1f}%")
         # tts('I didn\'t understand that!', 'en')
         funcs.play_sound('./prebaked_tts/Ididntunderstandthat.wav')
-        VRC_clear_prop_parameters()
+        vrc.clear_prop_params()
 
         return None
     else:
@@ -180,15 +182,19 @@ def faster_whisper_transcribe(recording):
     """ Transcribes audio in .wav file to text using Faster Whisper """
     if model is None:
         return None
-    vrc.chatbox('✍️ Transcribing...')
-    funcs.v_print('~Transcribing...')
+    if opts.whisper_task == 'transcribe':
+        vrc.chatbox('✍️ Transcribing...')
+        funcs.v_print('~Transcribing...')
+    elif opts.whisper_task == 'translate': 
+        vrc.chatbox('[あ>A] Translating...')
+        funcs.v_print('~Translating...')
 
     with whisper_lock:
         start_time = time.perf_counter()
         # audio = ffmpeg_for_whisper(recording) # This adds 500ms of latency with no apparent benefit 
         # Initialize transcription object on the recording
         segments, info = model.transcribe(
-            recording, beam_size=5, initial_prompt=opts.whisper_prompt, no_speech_threshold=0.4, log_prob_threshold=0.8)
+            recording, task=opts.whisper_task, beam_size=5, initial_prompt=opts.whisper_prompt, no_speech_threshold=0.4, log_prob_threshold=0.8)
 
         funcs.v_print(f'lang: {info.language}, {info.language_probability * 100:.1f}%')
 
@@ -197,7 +203,7 @@ def faster_whisper_transcribe(recording):
             vrc.chatbox('⚠ [nothing heard]')
             if opts.soundFeedback:
                 funcs.play_sound_threaded(speech_mis)
-            VRC_clear_prop_parameters()
+            vrc.clear_prop_params()
             return None
 
         # if not recognized as speech, dont bother processing anything  
@@ -206,7 +212,7 @@ def faster_whisper_transcribe(recording):
             if opts.soundFeedback:
                 funcs.play_sound_threaded(speech_mis)
                 funcs.play_sound('./prebaked_tts/Ididntunderstandthat.wav')
-            VRC_clear_prop_parameters()
+            vrc.clear_prop_params()
             end_time = time.perf_counter()
             funcs.v_print(f"--Transcription failed and took: {end_time - start_time:.3f}s")
             return None
@@ -222,7 +228,7 @@ def faster_whisper_transcribe(recording):
 
     if text == "":
         print ("\n>User: <Nothing was recognized>")
-        VRC_clear_prop_parameters()
+        vrc.clear_prop_params()
         return None
 
     # print the recognized text
@@ -232,19 +238,13 @@ def faster_whisper_transcribe(recording):
     if text.lower().startswith("system"):
         command = re.sub(r'[^a-zA-Z0-9]', '', text[text.find(' ') + 1:])
         handle_command(command.lower())
-        VRC_clear_prop_parameters()
+        vrc.clear_prop_params()
         return None
     
     # otherwise, return the recognized text
     else:
         vrc.set_parameter('VoiceRec_End', True)
         return text
-
-
-def VRC_clear_prop_parameters():
-    vrc.set_parameter('VoiceRec_End', True)
-    vrc.set_parameter('CGPT_Result', True)
-    vrc.set_parameter('CGPT_End', True)
 
 
 # def chatgpt_req(text):
@@ -489,8 +489,8 @@ def loop():
                 if (not recording and rms > opts.THRESHOLD):
                     opts.trigger = True
 
-            # Start recording if sound goes above threshold or parameter is triggered
-            if not recording and opts.trigger:
+            # Start recording if sound goes above threshold or parameter is triggered, but not if gpt is generating
+            if (not recording and opts.trigger) and not opts.generating:
                 if lastFrame is not None:
                     # Add last frame to buffer, in case the next frame starts recording in the middle of a word
                     frames.append(lastFrame)
