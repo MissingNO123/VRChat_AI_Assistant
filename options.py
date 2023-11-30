@@ -8,7 +8,9 @@ verbosity = False
 chatbox = True
 parrot_mode = False
 whisper_prompt = "Hello, I am playing VRChat."
-whisper_model = "base"
+whisper_model = "tiny"
+# whisper_model = "base"
+whisper_task = 'transcribe'
 soundFeedback = True            # Play sound feedback when recording/stopped/misrecognized
 audio_trigger_enabled = False   # Trigger voice recording on volume threshold
 key_trigger_key = Key.ctrl_r    # What key to double press to trigger recording
@@ -45,6 +47,7 @@ LOOP = True
 trigger = False
 speaking = False
 panic = False
+generating = False
 
 message_array = [] # List of messages sent back and forth between ChatGPT / User, can be initialized with example messages
 
