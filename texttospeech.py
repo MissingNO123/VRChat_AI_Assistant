@@ -111,11 +111,13 @@ class GoogleTranslateTTS():
 class GoogleCloudTTS():
     def __init__(self, language_code=opts.gcloud_language_code, name=opts.gcloud_voice_name):
         try:
+            self.pitch = 0.0
+            self.speaking_rate = 1.0
             self.client = texttospeech.TextToSpeechClient()
             self.audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-                speaking_rate=1.15,
-                pitch=-1.0
+                speaking_rate=self.speaking_rate,
+                pitch=self.pitch
             )
             self.ready = True
         except Exception as e:
@@ -150,6 +152,14 @@ class GoogleCloudTTS():
         end_time = time.perf_counter()
         verbose_print(f'--google cloud took {end_time - start_time:.3f}s')
         return output
+
+    def update_pitch(self, newPitch):
+        self.pitch = newPitch
+        self.audio_config.pitch = newPitch
+
+    def update_speaking_rate(self, newRate):
+        self.speaking_rate = newRate
+        self.audio_config.speaking_rate = newRate
 
 
 class TikTokTTS():
