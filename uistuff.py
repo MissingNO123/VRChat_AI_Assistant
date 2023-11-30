@@ -618,30 +618,53 @@ class GCloudOptionsFrame(customtkinter.CTkFrame):
         self.textfields = []
         self.language_codes = {}
         self.voices = {}
+
+        if not isinstance(opts.tts_engine, texttospeech.GoogleCloudTTS):
+            self.label_error = customtkinter.CTkLabel(self, text="Google Cloud is not the currently selected TTS engine.", fg_color="transparent")
+            self.label_error.grid(row=1, column=0, sticky="ew", pady=(4,1), padx=5)
+            return
+
+        #self.pitch = customtkinter.IntVar(value=opts.tts_engine.rate)
+        self.pitch = customtkinter.StringVar(self, value=str(opts.tts_engine.audio_config.pitch))
+        self.speaking_rate = customtkinter.StringVar(self, value=str(opts.tts_engine.audio_config.speaking_rate))
         
         self.title = customtkinter.CTkLabel(
             self, text=self.title, fg_color="gray20", corner_radius=4)
-        self.title.grid(row=0, column=0, columnspan=3, padx=10, pady=(10,0), sticky="ew")
+        self.title.grid(row=0, column=0, columnspan=3, padx=10, pady=(5,0), sticky="ew")
         
         self.gcloud_language_code_var = customtkinter.StringVar(self, value=opts.gcloud_language_code)
         self.gcloud_voice_name_var = customtkinter.StringVar(self, value=f"{opts.gcloud_tts_type}-{opts.gcloud_letter_id}")
 
         row_id = 1
 
-        self.label_gcloud_language_code = customtkinter.CTkLabel(self, text="TTS Language Code: ", fg_color="transparent")
-        self.label_gcloud_language_code.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
+        self.label_gcloud_language_code = customtkinter.CTkLabel(self, text="TTS Language Code / Voice Name: ", fg_color="transparent")
+        self.label_gcloud_language_code.grid(row=row_id, column=0, columnspan=2, sticky="w", pady=(2,1), padx=5)
         row_id += 1
         self.textfield_gcloud_language_code = customtkinter.CTkEntry(self, width=60, placeholder_text="#", textvariable=self.gcloud_language_code_var)
-        self.textfield_gcloud_language_code.grid(row=row_id, column=0, columnspan=2, sticky="w", pady=2, padx=10)
+        self.textfield_gcloud_language_code.grid(row=row_id, column=0, columnspan=1, sticky="ew", pady=2, padx=(5,0))
         self.textfields.append(self.textfield_gcloud_language_code)
+        # row_id += 1
+
+        # self.label_gcloud_voice = customtkinter.CTkLabel(self, text="TTS Voice Name: ", fg_color="transparent")
+        # self.label_gcloud_voice.grid(row=row_id, column=0, sticky="w", pady=(2,1), padx=5)
+        # row_id += 1
+        self.textfield_gcloud_voice = customtkinter.CTkEntry(self, placeholder_text="#", textvariable=self.gcloud_voice_name_var)
+        self.textfield_gcloud_voice.grid(row=row_id, column=1, columnspan=1, sticky="ew", pady=2, padx=(0,5))
+        self.textfields.append(self.textfield_gcloud_voice)
         row_id += 1
 
-        self.label_gcloud_voice = customtkinter.CTkLabel(self, text="TTS Voice Name: ", fg_color="transparent")
-        self.label_gcloud_voice.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
+        self.label_speaking_rate = customtkinter.CTkLabel(self, text="Speaking Rate: ", fg_color="transparent")
+        self.label_speaking_rate.grid(row=row_id, column=0, sticky="w", pady=(2,1), padx=5)
         row_id += 1
-        self.textfield_gcloud_voice = customtkinter.CTkEntry(self, placeholder_text="#", textvariable=self.gcloud_voice_name_var)
-        self.textfield_gcloud_voice.grid(row=row_id, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
-        self.textfields.append(self.textfield_gcloud_voice)
+        self.spinbox_speaking_rate = FloatSpinbox(self, step_size=0.125, min=0.25, max=4.0, value=self.speaking_rate.get(), command=self._update_gcloud)
+        self.spinbox_speaking_rate.grid(row=row_id, column=0, columnspan=2, sticky="ew", pady=0, padx=10)
+        row_id += 1
+
+        self.label_pitch = customtkinter.CTkLabel(self, text="Pitch: ", fg_color="transparent")
+        self.label_pitch.grid(row=row_id, column=0, sticky="w", pady=(2,1), padx=5)
+        row_id += 1
+        self.spinbox_pitch = FloatSpinbox(self, step_size=0.5, min=-20, max=20, value=self.pitch.get(), command=self._update_gcloud)
+        self.spinbox_pitch.grid(row=row_id, column=0, columnspan=2, sticky="ew", pady=0, padx=10)
         row_id += 1
 
         for field in self.textfields:
@@ -651,6 +674,15 @@ class GCloudOptionsFrame(customtkinter.CTkFrame):
     def _update_gcloud(self, event=None):
         opts.gcloud_language_code = self.gcloud_language_code_var.get()
         opts.gcloud_voice_name = f'{self.gcloud_language_code_var.get()}-{self.gcloud_voice_name_var.get()}'
+        if not isinstance(opts.tts_engine, texttospeech.GoogleCloudTTS):
+            print("Google Cloud is not the currently selected TTS engine")
+            return
+        newPitch = self.spinbox_pitch.get()
+        newSpeakingRate = self.spinbox_speaking_rate.get()
+        if newPitch is not None: 
+            opts.tts_engine.update_pitch(newPitch)
+        if newSpeakingRate is not None: 
+            opts.tts_engine.update_speaking_rate(newSpeakingRate)
 
 
 class ManualTextEntryWindow(customtkinter.CTkToplevel):
@@ -671,7 +703,7 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
         self.iconbitmap(icon)
         self.title = title
 
-        self.generating = False
+        opts.generating = False
         self.result = None
 
         self.title = customtkinter.CTkLabel(
@@ -701,10 +733,18 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
         self.textfield_text_entry.bind("<Return>", self._start_send)
 
     def refresh_messages(self):
-        message_history_str = "\n---\n".join(
-            f'{"User" if message["role"] == "user" else "ChatGPT"}: {message["content"]}' 
-            for message in opts.message_array
-            )
+        # message_history_str = "\n---\n".join(
+        #     f'{"User" if message["role"] == "user" else "ChatGPT"}: {message["content"]}' 
+        #     for message in opts.message_array
+        #     )
+        str_array = []
+        for message in opts.message_array:
+            if message["role"] == "user" or message["role"] == "assistant":
+                if len(message["content"]) > 0:
+                    str_array.append( f'{"User" if message["role"] == "user" else "ChatGPT"}: {message["content"]}' )
+            elif message["role"] == "function":
+                str_array.append( "[ChatGPT ran a function]" )
+        message_history_str = "\n---\n".join(str_array)
         self.textbox_temp_chat_history.delete("0.0", "end")
         self.addtext(message_history_str)
 
@@ -720,7 +760,7 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
 
 
     def _start_send(self, event=None):
-        if self.generating: return
+        if opts.generating: return
         user_text = self.text_entry.get().strip()
         if len(user_text) > 0:
             self.button_send.configure(text="Wait...", state="disabled")
@@ -737,12 +777,14 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
                 generate_thread.start()
 
     def _generate(self, user_text, *args, **kwargs):
-        self.generating = True
+        opts.generating = True
         self.result = None
         start_time = time.perf_counter()
         try:
-            completion = chatgpt.get_completion(user_text)
+            completion = chatgpt.generate(user_text, True)
             completion_text = ''
+            is_function_call = False
+            function_args = {}
             print("\n>ChatGPT: ", end='')
             self.addtext("\n---\nChatGPT: ")
             for chunk in completion:
@@ -754,16 +796,27 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
                 sys.stdout.flush()
                 self.addtext(event_text)
                 completion_text += event_text  # append the text
+                if chunk['choices'][0]['delta'].get('function_call'):
+                    is_function_call = True
+                    function_args = chunk['choices'][0]['delta']["function_call"]
+                    break
             end_time = time.perf_counter()
-            print()
+            if is_function_call:
+                funcs.v_print(f'--OpenAI Function call took {end_time - start_time:.3f}s')
+                print("[Running Function...]")
+                self.addtext("[Running Function...]\n")
+                self.result = chatgpt.call_function(function_args)
+                self.addtext(self.result)
+            else: 
+                self.result = completion_text
+                if len(self.result):
+                    opts.message_array.append({"role": "assistant", "content": self.result})
             funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
-            self.result = completion_text
-            if len(self.result):
-                opts.message_array.append({"role": "assistant", "content": self.result})
+            print()
         except Exception:
             print('Failed to generate from ChatGPT')
         finally:
-            self.generating = False
+            opts.generating = False
             self._end_send()
 
     def _end_send(self):
@@ -773,7 +826,7 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
             if opts.chatbox and len(self.result) > 140:
                 funcs.cut_up_text(self.result)
             else:
-                text = '🤖 ' + self.result if (not opts.parrot_mode) else self.result
+                text = '🤖 ' + self.result if (not opts.parrot_mode) else '💬 ' + self.result
                 vrc.chatbox(f'{text}')
                 funcs.tts(self.result)
         self.textfield_text_entry.configure(state="normal")
