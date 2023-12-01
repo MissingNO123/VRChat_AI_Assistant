@@ -13,10 +13,25 @@ logit_bias = {
     '41599': -100, '7926': -100, '1058': 1, '18': 1, '299': 5, '3972': 5
     }
 
-temperature = 0.5
-frequency_penalty = 0.2
+# temperature = 0.5
+# frequency_penalty = 0.2
+# presence_penalty = 0.5
+
+temperature = 0.15
+frequency_penalty = 1.1
 presence_penalty = 0.5
+top_p = 0.1
+top_k = 40
+
+example_messages = [{"role": "user", "content": "hello"},
+                    {"role": "assistant", "content": "hi, im playing vrchat"},
+                    {"role": "user", "content": "who are you?"},
+                    {"role": "assistant", "content": "i am assistant, i am an ai"}]
+
 timeout = 20
+
+openai.api_base = "http://localhost:1234/v1" # point to the local server
+openai.api_key = "" # no need for an API key
 
 functions=[
     {
@@ -70,11 +85,11 @@ def generate(text, return_completion=False):
     opts.message_array.append({"role": "user", "content": text})
     # Init system prompt with date and add it persistently to top of chat buffer
     system_prompt_object = generate_system_prompt_object()
-    message_plus_system = system_prompt_object + opts.message_array
+    message_plus_system = system_prompt_object + example_messages + opts.message_array
     err = None
     gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613"
     try:
-        vrc.chatbox('📡 Sending to OpenAI...')
+        vrc.chatbox('🤔 Thinking...')
         start_time = time.perf_counter()
         completion = openai.ChatCompletion.create(
             model=gpt_snapshot,
@@ -83,6 +98,8 @@ def generate(text, return_completion=False):
             temperature=temperature,
             frequency_penalty=frequency_penalty,
             presence_penalty=presence_penalty,
+            top_p=top_p,
+            top_k=top_k,
             timeout=timeout,
             stream=True,
             logit_bias=logit_bias,
@@ -152,7 +169,7 @@ def get_completion(text):
     opts.message_array.append({"role": "user", "content": text})
     # Init system prompt with date and add it persistently to top of chat buffer
     system_prompt_object = generate_system_prompt_object()
-    message_plus_system = system_prompt_object + opts.message_array
+    message_plus_system = system_prompt_object + example_messages + opts.message_array
     # err = None
     gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613"
     try:
@@ -165,6 +182,8 @@ def get_completion(text):
             temperature=temperature,
             frequency_penalty=frequency_penalty,
             presence_penalty=presence_penalty,
+            top_p=top_p,
+            top_k=top_k,
             timeout=timeout,
             stream=True,
             logit_bias=logit_bias
@@ -235,7 +254,8 @@ def generate_system_prompt_object():
     # create object with system prompt and other realtime info
     content = "\n"
     content += f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M:%S %p")} Eastern Standard Time.'
-    content += f' You are using {opts.gpt} from OpenAI.'
+    if opts.gpt != 'custom':
+        content += f' You are using {opts.gpt} from OpenAI.'
     if (funcs.log_parser.running):
         content += "\nHere is some information about what's happening in the current VRChat instance:"
         content += f'\nWorld Name: {funcs.log_parser.world_name}'
