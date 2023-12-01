@@ -12,6 +12,7 @@ import pyttsx3
 import ffmpeg
 import options as opts
 from dotenv import load_dotenv
+import re
 load_dotenv()
 
 empty_audio = BytesIO(b"\x52\x49\x46\x46\x52\x49\x00\x00\x57\x41\x56\x45\x66\x6d\x74\x20\x10\x00\x00\x00\x01\x00\x01\x00\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00\x64\x61\x74\x61\x00\x00\x00\x00")
@@ -33,8 +34,8 @@ def to_wav_bytes(file, speed=1.0):
         end_time = time.perf_counter()
         verbose_print(f'--ffmpeg to_wav took {end_time - start_time:.3f}s')
         return BytesIO(stdout)
-    except ffmpeg.Error as e:
-        raise RuntimeError(f"Failed to convert audio: {e.stderr.decode()}") from e
+    except Exception as e:
+        raise RuntimeError(f"Failed to convert audio: {e}") from e
  
 
 def filter(string):
@@ -42,8 +43,8 @@ def filter(string):
     replacements = {
         '```': 'code.',
         '`': '',
-        '💬': '',
-        '🤖':'',
+        # '💬': '',
+        # '🤖':'',
         '~': '',
         '*': '',
         'missingno': 'missing no',
@@ -51,10 +52,14 @@ def filter(string):
         'vrchat': 'VR Chat',
         'nya': 'nyaa'
     }
+    
     for word, replacement in replacements.items():
         word_pattern = re.escape(word)
         string = re.sub(word_pattern, replacement, string, flags=re.IGNORECASE)
+    emoji_pattern = re.compile("[\U0001F000-\U0001FFFF]+", flags=re.UNICODE)
+    string = re.sub(emoji_pattern, r'', string)
     return string
+
 
 
 class WindowsTTS():
