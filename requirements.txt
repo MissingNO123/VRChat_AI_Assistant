@@ -6,7 +6,7 @@ elevenlabs==0.1.1
 python-dotenv
 openai-whisper
 faster-whisper
-ffmpeg
+ffmpeg-python
 google-cloud-texttospeech
 pynput
 pyttsx3
