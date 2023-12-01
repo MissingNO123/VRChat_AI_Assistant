@@ -828,7 +828,7 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
             else:
                 text = '🤖 ' + self.result if (not opts.parrot_mode) else '💬 ' + self.result
                 vrc.chatbox(f'{text}')
-                funcs.tts(self.result)
+                if len(self.result): funcs.tts(self.result)
         self.textfield_text_entry.configure(state="normal")
         self.button_send.configure(text="Send", state="normal")
         self.refresh_messages()
