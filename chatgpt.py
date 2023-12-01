@@ -30,7 +30,7 @@ example_messages = [{"role": "user", "content": "hello"},
 
 timeout = 20
 
-openai.api_base = "http://localhost:1234/v1" # point to the local server
+openai.api_base = opts.custom_api_url
 openai.api_key = "" # no need for an API key
 
 functions=[
@@ -87,7 +87,7 @@ def generate(text, return_completion=False):
     system_prompt_object = generate_system_prompt_object()
     message_plus_system = system_prompt_object + example_messages + opts.message_array
     err = None
-    gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613"
+    gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613" if opts.gpt == "GPT-4" else "custom"
     try:
         vrc.chatbox('🤔 Thinking...')
         start_time = time.perf_counter()
@@ -171,7 +171,7 @@ def get_completion(text):
     system_prompt_object = generate_system_prompt_object()
     message_plus_system = system_prompt_object + example_messages + opts.message_array
     # err = None
-    gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613"
+    gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613" if opts.gpt == "GPT-4" else "custom"
     try:
         # vrc.chatbox('📡 Sending to OpenAI...')
         # start_time = time.perf_counter()
@@ -228,7 +228,7 @@ def call_function(function_args):
     system_prompt_object = generate_system_prompt_object()
     message_plus_system = system_prompt_object + opts.message_array
     # err = None
-    gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613"
+    gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613" if opts.gpt == "GPT-4" else "custom" 
     try:
         completion = openai.ChatCompletion.create(
             model=gpt_snapshot,

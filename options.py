@@ -18,6 +18,7 @@ audio_trigger_enabled = False   # Trigger voice recording on volume threshold
 key_trigger_key = Key.ctrl_r    # What key to double press to trigger recording
 key_press_window = 0.400        # How fast should you double click the key to trigger voice recording
 gpt = "custom"                  # GPT-3 | GPT-4
+custom_api_url = "http://192.168.2.220:1234/v1" # Server to use if GPT is set to custom               
 max_tokens = 200                # Max tokens that openai will return
 max_conv_length = 10            # Max length of conversation buffer
 in_dev_name = "VoiceMeeter Aux Output"  # Input  (mic)

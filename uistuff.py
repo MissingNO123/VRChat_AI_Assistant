@@ -123,7 +123,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
         
         self.whisper_prompt = customtkinter.StringVar(value=opts.whisper_prompt)
         self.selected_whisper_model = customtkinter.StringVar(value=opts.whisper_model)
-        self.gpt_radio_var = customtkinter.IntVar(value=0 if opts.gpt == "GPT-3" else 1)
+        self.gpt_radio_var = customtkinter.IntVar(value=0 if opts.gpt == "GPT-3" else 1 if opts.gpt == "GPT-4" else 2 if opts.gpt == "custom" else 0)
         self.max_tokens_var = customtkinter.IntVar(value=opts.max_tokens)
         self.max_conv_length_var = customtkinter.IntVar(value=opts.max_conv_length)
         self.sytem_prompt_var = customtkinter.StringVar(value=opts.system_prompt)
@@ -144,6 +144,8 @@ class AIStuffFrame(customtkinter.CTkFrame):
         self.radiobutton_gpt_3.grid(row=6, column=0, padx=10)
         self.radiobutton_gpt_4 = customtkinter.CTkRadioButton(self, text="GPT-4", command=self._set_variables, variable=self.gpt_radio_var, value=1)
         self.radiobutton_gpt_4.grid(row=6, column=1)
+        self.radiobutton_gpt_custom = customtkinter.CTkRadioButton(self, text="Custom", command=self._set_variables, variable=self.gpt_radio_var, value=2)
+        self.radiobutton_gpt_custom.grid(row=6, column=2)
 
         self.label_max_tokens = customtkinter.CTkLabel(self, text="GPT Max Tokens: ", fg_color="transparent")
         self.label_max_tokens.grid(row=7, column=0, sticky="w", pady=(4,1), padx=5)
@@ -176,7 +178,12 @@ class AIStuffFrame(customtkinter.CTkFrame):
         self.textfield_whisper_prompt.bind("<Return>", self._set_variables)
 
     def update_radio_buttons(self):
-        value = 0 if opts.gpt == "GPT-3" else 1
+        # value = 0 if opts.gpt == "GPT-3" else 1
+        match opts.gpt:
+            case "GPT-3":  value = 0 
+            case "GPT-4":  value = 1
+            case "custom": value = 2
+            case _:        value = 0
         self.gpt_radio_var.set(value)
 
     def _reset_chat_buffer(self):
@@ -209,7 +216,11 @@ class AIStuffFrame(customtkinter.CTkFrame):
     def _set_variables(self, event=None):
         opts.system_prompt = self.textbox_system_prompt.get("0.0", "end")
         value = self.gpt_radio_var.get()
-        opts.gpt = "GPT-3" if value == 0 else "GPT-4"
+        # opts.gpt = "GPT-3" if value == 0 else "GPT-4"
+        match value:
+            case 0: opts.gpt = "GPT-3"
+            case 1: opts.gpt = "GPT-4"
+            case 2: opts.gpt = "custom"
         opts.whisper_prompt = self.whisper_prompt.get()
         opts.max_tokens = int( self.max_tokens_var.get() )
         opts.max_conv_length = int( self.spinbox_max_conv_length.get() )

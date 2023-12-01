@@ -371,6 +371,12 @@ def handle_command(command):
             print(f'$ Now using {opts.gpt}')
             vrc.chatbox('Now using GPT-4')
             funcs.play_sound('./prebaked_tts/NowusingGPT4.wav')
+        
+        case 'gptcustom':
+            opts.gpt = 'custom'
+            ui.app.ai_stuff_frame.update_radio_buttons()
+            print(f'$ Now using {opts.gpt}')
+            vrc.chatbox('Now using Custom GPT model')
 
         case 'parrotmode':
             opts.parrot_mode = not opts.parrot_mode
