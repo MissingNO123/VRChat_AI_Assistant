@@ -1071,7 +1071,7 @@ class App(customtkinter.CTk):
         super().__init__()
 
         self.title("VRChat AI Assistant")
-        self.geometry("840x630")
+        self.geometry("1024x630")
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure((1,2), weight=1)
         self.grid_rowconfigure(0, weight=0)
