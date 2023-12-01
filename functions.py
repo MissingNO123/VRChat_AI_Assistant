@@ -187,11 +187,11 @@ def cut_up_text(text):
     txt = text
     segments = []
     while len(txt) > 144:
-        substrings = [' ', '.', ',', '!', '?', ')', ']', '}', '>', ':', ';', '\'', '"', '\n']
-        last_indices = [txt[:144].rfind(sub) for sub in substrings]
+        substrings = [' ', '.', ',', '!', '?', ')', ']', '}', '>', ':', ';', '"', '\n']
+        last_indices = [txt[:143].rfind(sub) for sub in substrings]
         last_space_index = max(last_indices)
         if last_space_index == -1:
-            last_space_index = 144
+            last_space_index = 143
         chunk = txt[:last_space_index]
         segments.append(chunk)
         txt = txt[last_space_index+1:]
@@ -202,7 +202,7 @@ def cut_up_text(text):
     for i, segment in enumerate(segments):
         filtered_text = ttsutils.filter(segment)
         audio = empty_audio
-        if filtered_text != '':
+        if len(filtered_text):
             audio = opts.tts_engine.tts(filtered_text)
             if ( i is not len(segments) - 1 ) and ( (not isinstance(opts.tts_engine, ttsutils.ElevenTTS)) or (not isinstance(opts.tts_engine, ttsutils.GoogleTranslateTTS))  ):
                 audio = clip_audio_end(audio)
