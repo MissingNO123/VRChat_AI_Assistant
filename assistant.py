@@ -361,12 +361,14 @@ def handle_command(command):
         case 'gpt3':
             opts.gpt = 'GPT-3'
             ui.app.ai_stuff_frame.update_radio_buttons()
+            chatgpt.update_base_url()
             print(f'$ Now using {opts.gpt}')
             vrc.chatbox('Now using GPT-3.5-Turbo')
             funcs.play_sound('./prebaked_tts/NowusingGPT35Turbo.wav')
 
         case 'gpt4':
             opts.gpt = 'GPT-4'
+            chatgpt.update_base_url()
             ui.app.ai_stuff_frame.update_radio_buttons()
             print(f'$ Now using {opts.gpt}')
             vrc.chatbox('Now using GPT-4')
@@ -374,6 +376,7 @@ def handle_command(command):
         
         case 'gptcustom':
             opts.gpt = 'custom'
+            chatgpt.update_base_url()
             ui.app.ai_stuff_frame.update_radio_buttons()
             print(f'$ Now using {opts.gpt}')
             vrc.chatbox('Now using Custom GPT model')

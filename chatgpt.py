@@ -30,8 +30,16 @@ example_messages = [{"role": "user", "content": "hello"},
 
 timeout = 20
 
-openai.api_base = opts.custom_api_url
-openai.api_key = "" # no need for an API key
+default_api_base = openai.api_base
+
+
+def update_base_url():
+    if opts.gpt == "custom":
+        openai.api_base = opts.custom_api_url
+    else:
+        openai.api_base = default_api_base
+
+update_base_url()
 
 functions=[
     {

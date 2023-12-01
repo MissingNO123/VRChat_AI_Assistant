@@ -221,6 +221,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
             case 0: opts.gpt = "GPT-3"
             case 1: opts.gpt = "GPT-4"
             case 2: opts.gpt = "custom"
+        chatgpt.update_base_url()
         opts.whisper_prompt = self.whisper_prompt.get()
         opts.max_tokens = int( self.max_tokens_var.get() )
         opts.max_conv_length = int( self.spinbox_max_conv_length.get() )
