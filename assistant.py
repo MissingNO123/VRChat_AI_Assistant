@@ -111,11 +111,11 @@ def save_recorded_frames(frames):
                 funcs.cut_up_text(text)
             else:
                 if opts.parrot_mode:
-                    text = '💬 ' + text
+                    e_text = '💬 ' + text
                 else:
-                    text = '🤖 ' + text
-                vrc.chatbox(f'{text}')
-                funcs.tts(text)
+                    e_text = '🤖 ' + text
+                vrc.chatbox(f'{e_text}')
+                if len(text): funcs.tts(e_text)
         vrc.set_parameter('VoiceRec_End', True)
         vrc.set_parameter('CGPT_Result', True)
         vrc.set_parameter('CGPT_End', True)
@@ -427,7 +427,7 @@ def load_whisper():
         # vrc.chatbox('🔄 Loading Voice Recognition...')
         model = None
         start_time = time.perf_counter()
-        model = WhisperModel(opts.whisper_model, device='cuda', compute_type="int8") # FasterWhisper
+        model = WhisperModel(opts.whisper_model, device=opts.whisper_device, compute_type=opts.whisper_compute_type) # FasterWhisper
         end_time = time.perf_counter()
         funcs.v_print(f'--Whisper loaded in {end_time - start_time:.3f}s')
         # vrc.chatbox('✔️ Voice Recognition Loaded')
