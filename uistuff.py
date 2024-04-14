@@ -188,6 +188,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
 
     def _reset_chat_buffer(self):
         opts.message_array = []
+        opts.message_array = opts.example_messages.copy()
         print(f'$ Messages cleared!')
 
     def _spinbox_callback(self):
@@ -746,16 +747,16 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
 
     def refresh_messages(self):
         # message_history_str = "\n---\n".join(
-        #     f'{"User" if message["role"] == "user" else "ChatGPT"}: {message["content"]}' 
+        #     f'{"User" if message["role"] == "user" else "AI"}: {message["content"]}' 
         #     for message in opts.message_array
         #     )
         str_array = []
         for message in opts.message_array:
             if message["role"] == "user" or message["role"] == "assistant":
                 if len(message["content"]) > 0:
-                    str_array.append( f'{"User" if message["role"] == "user" else "ChatGPT"}: {message["content"]}' )
+                    str_array.append( f'{"User" if message["role"] == "user" else "AI"}: {message["content"]}' )
             elif message["role"] == "function":
-                str_array.append( "[ChatGPT ran a function]" )
+                str_array.append( "[AI ran a function]" )
         message_history_str = "\n---\n".join(str_array)
         self.textbox_temp_chat_history.delete("0.0", "end")
         self.addtext(message_history_str)
@@ -768,6 +769,7 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
         self.textbox_temp_chat_history.delete("0.0", "end")
         self.addtext("Messages cleared!\n")
         opts.message_array = []
+        opts.message_array = opts.example_messages.copy()
         print(f'$ Messages cleared!')
 
 
@@ -797,8 +799,8 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
             completion_text = ''
             is_function_call = False
             function_args = {}
-            print("\n>ChatGPT: ", end='')
-            self.addtext("\n---\nChatGPT: ")
+            print("\n>AI: ", end='')
+            self.addtext("\n---\nAI: ")
             for chunk in completion:
                 event_text = ''
                 chunk_message = chunk['choices'][0]['delta']  # extract the message
@@ -826,7 +828,7 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
             funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
             print()
         except Exception:
-            print('Failed to generate from ChatGPT')
+            print('Failed to generate from LLM')
         finally:
             opts.generating = False
             self._end_send()
