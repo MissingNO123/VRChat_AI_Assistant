@@ -267,7 +267,9 @@ def generate_system_prompt_object():
         player_count = funcs.get_player_count()
         if player_list != None and player_count != None:
             content += f'\nThere are {player_count} players in this instance: '
+            player_list = [f'"{item}"' for item in player_list]
             player_list = ', '.join(player_list)
+            player_list = f"[{player_list}]"
             content += player_list
     
     content += "\n\n"
