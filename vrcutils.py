@@ -5,10 +5,6 @@ from pythonosc.osc_server import ThreadingOSCUDPServer
 import options as opts
 import functions as funcs
 
-ip = "127.0.0.1"  # IP and Ports for VRChat OSC
-inPort = 9000
-outPort = 9001
-
 
 def chatbox(message):
     """ Send a message to the VRC chatbox if enabled """
@@ -37,9 +33,9 @@ def clear_prop_params():
 
 # VRC OSC init
 # Client (Sending)
-osc_client = udp_client.SimpleUDPClient(ip, inPort)
+osc_client = udp_client.SimpleUDPClient(opts.vrc_ip, opts.vrc_osc_inport)
 # chatbox('▶️ Starting...')
 # Server (Receiving)
 dispatcher = Dispatcher()
 dispatcher.map("/avatar/parameters/*", parameter_handler)
-osc_server = ThreadingOSCUDPServer((ip, outPort), dispatcher)
+osc_server = ThreadingOSCUDPServer((opts.vrc_ip, opts.vrc_osc_outport), dispatcher)
