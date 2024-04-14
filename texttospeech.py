@@ -249,14 +249,18 @@ class ElevenTTS(ElevenLabs):
         if self.selected_voice is None:
             return None
 
-        request = self._request(
-            "POST",
-            "text-to-speech/%s" % self.selected_voice.id,
-            {
-                "text": filter(text),
-                "voice_settings": self.voice_settings
-            }
-        )
+        try:
+            request = self._request(
+                "POST",
+                "text-to-speech/%s" % self.selected_voice.id,
+                {
+                    "text": filter(text),
+                    "voice_settings": self.voice_settings
+                }
+            )
+        except Exception as e:
+            print(f"Failed to make request: {e}")
+            return None
 
         file = BytesIO()
         file.write(request.content)
