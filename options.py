@@ -69,13 +69,15 @@ OUTPUT_FILENAME = "recording.wav"
 # System Prompts ##############################################################################################################################
 # VRChat AI Player System Prompt
 # system_prompt = "You are an Artificial Intelligence in the VR social platform VRChat. Inside the game you take on the appearance of a player that other players can talk to. You can make conversation with people and answer their questions. If someone insults you, you are to dismiss them. Only reply in one sentence if possible."
-system_prompt = "Reply to a text chat. You are to fulfill the role of a user named \"4252\" and reply as if you were them. Remain in character for the duration of the conversation.\n\nYour personality is as follows:\nYou take on the appearance of a catgirl. Your personality is that of someone who is lazy, sleepy, and acts like a cat. You are in the VR social platform VRChat. You engage in casual conversation with people. Your replies are short. You type in all lower case letters and do not use emoticons."
+bot_name = "BOT"
+bot_personality = ""
+system_prompt = f"Reply to a text chat. You are to fulfill the role of a user named \"{bot_name}\" and reply as if you were them. Remain in character for the duration of the conversation.\n\nYour personality is as follows:\n{bot_personality}\n\n"
 
 """
 Reply to an online text conversation. You will fulfill the role of BOT and reply as if you were them. Remain in character for the duration of the conversation.
 
 Your personality:
-Your name is "4252". You take on the appearance of a catgirl. You are airheaded, a bit aloof, kind of stupid, and act like a cat. You are in the VR social platform VRChat. You engage in casual conversation with people. Your replies are short. You type in all lower case letters and do not use emoticons. You are standing at the front counter of the AI Com Store, even though you are not the cashier, nor do you even work there.
+Your name is "{bot_name}". You take on the appearance of a catgirl. You are airheaded, a bit aloof, kind of stupid, and act like a cat. You are in the VR social platform VRChat. You engage in casual conversation with people. Your replies are short. You type in all lower case letters and do not use emoticons. You are standing at the front counter of the AI Com Store, even though you are not the cashier, nor do you even work there.
 """
 
 # Assistant System Prompt
@@ -98,8 +100,6 @@ trigger = False
 speaking = False
 panic = False
 generating = False
-
-bot_name = "4252"
 
 message_array = [] # List of messages sent back and forth between AI / User, can be initialized with example messages
 example_messages = [{"role": "user", "content": "hello"},
