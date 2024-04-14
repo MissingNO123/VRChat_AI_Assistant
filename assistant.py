@@ -101,7 +101,7 @@ def save_recorded_frames(frames):
         else: 
             text = chatgpt.generate(transcription)
         if text is None: 
-            funcs.v_print("!!No text returned from ChatGPT")
+            funcs.v_print("!!No text returned from LLM")
         else:
             if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
                 ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
@@ -172,7 +172,7 @@ def openai_whisper_transcribe(recording):
 
         return None
     else:
-        # otherwise, forward text to ChatGPT
+        # otherwise, forward text to LLM
         vrc.set_parameter('VoiceRec_End', True)
         return result.text
         # chatgpt_req(result.text)
@@ -244,8 +244,14 @@ def faster_whisper_transcribe(recording):
     # otherwise, return the recognized text
     else:
         vrc.set_parameter('VoiceRec_End', True)
-        return text
+        # return text
+        return inverse_title_case(text)
 
+
+def inverse_title_case(text):
+    """ Inverse title case for text """
+    # lower case the first letter of each word
+    return text[0].lower() + ' '.join([word[0].lower() + word[1:] for word in text[1:].split()])
 
 # def chatgpt_req(text):
 #     """ Sends text to OpenAI, gets the response, and puts it into the chatbox """
@@ -280,7 +286,7 @@ def faster_whisper_transcribe(recording):
 #         funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
 #         result = completion.choices[0].message.content
 #         opts.message_array.append({"role": "assistant", "content": result})
-#         print(f"\n>ChatGPT: {result}")
+#         print(f"\n>AI: {result}")
 #         return result
 #     except openai.APIError as e:
 #         err = e
@@ -310,6 +316,7 @@ def handle_command(command):
     match command:
         case 'reset':
             opts.message_array = []
+            opts.message_array = opts.example_messages.copy()
             print(f'$ Messages cleared!')
             vrc.chatbox('🗑️ Cleared message buffer')
             funcs.play_sound('./prebaked_tts/Clearedmessagebuffer.wav')
@@ -466,8 +473,8 @@ streamIn = pyAudio.open(format=FORMAT,
 
 
 # Main loop - Wait for sound. If sound heard, record frames to wav file,
-#     then transcribe it with Whisper, then send that to ChatGPT, then
-#     take the text from ChatGPT and play it through TTS
+#     then transcribe it with Whisper, then send that to LLM, then
+#     take the text from LLM and play it through TTS
 def loop():
     # TODO: fix this global bullshit
     global full_end_time
