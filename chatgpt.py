@@ -17,16 +17,6 @@ logit_bias = {
 # frequency_penalty = 0.2
 # presence_penalty = 0.5
 
-temperature = 0.15
-frequency_penalty = 1.1
-presence_penalty = 0.5
-top_p = 0.1
-top_k = 40
-
-example_messages = [{"role": "user", "content": "hello"},
-                    {"role": "assistant", "content": "hi, im playing vrchat"},
-                    {"role": "user", "content": "who are you?"},
-                    {"role": "assistant", "content": "i am assistant, i am an ai"}]
 
 timeout = 20
 
@@ -93,7 +83,7 @@ def generate(text, return_completion=False):
     opts.message_array.append({"role": "user", "content": text})
     # Init system prompt with date and add it persistently to top of chat buffer
     system_prompt_object = generate_system_prompt_object()
-    message_plus_system = system_prompt_object + example_messages + opts.message_array
+    message_plus_system = system_prompt_object + opts.message_array
     err = None
     gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613" if opts.gpt == "GPT-4" else "custom"
     try:
@@ -103,11 +93,12 @@ def generate(text, return_completion=False):
             model=gpt_snapshot,
             messages=message_plus_system,
             max_tokens=opts.max_tokens,
-            temperature=temperature,
-            frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty,
-            top_p=top_p,
-            top_k=top_k,
+            temperature=opts.temperature,
+            frequency_penalty=opts.frequency_penalty,
+            presence_penalty=opts.presence_penalty,
+            top_p=opts.top_p,
+            min_p=opts.min_p,
+            top_k=opts.top_k,
             timeout=timeout,
             stream=True,
             logit_bias=logit_bias,
@@ -119,7 +110,7 @@ def generate(text, return_completion=False):
         completion_text = ''
         is_function_call = False
         function_args = {}
-        print("\n>ChatGPT: ", end='')
+        print("\n>AI: ", end='')
         for chunk in completion:
             event_text = ''
             chunk_message = chunk['choices'][0]['delta']  # extract the message
@@ -142,7 +133,7 @@ def generate(text, return_completion=False):
         # result = completion.choices[0].message.content
         result = completion_text
         opts.message_array.append({"role": "assistant", "content": result})
-        # print(f"\n>ChatGPT: {result}")
+        # print(f"\n>AI: {result}")
         opts.generating = False
         return result
     except openai.APIError as e:
@@ -177,7 +168,7 @@ def get_completion(text):
     opts.message_array.append({"role": "user", "content": text})
     # Init system prompt with date and add it persistently to top of chat buffer
     system_prompt_object = generate_system_prompt_object()
-    message_plus_system = system_prompt_object + example_messages + opts.message_array
+    message_plus_system = system_prompt_object + opts.message_array
     # err = None
     gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613" if opts.gpt == "GPT-4" else "custom"
     try:
@@ -187,11 +178,12 @@ def get_completion(text):
             model=gpt_snapshot,
             messages=message_plus_system,
             max_tokens=opts.max_tokens,
-            temperature=temperature,
-            frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty,
-            top_p=top_p,
-            top_k=top_k,
+            temperature=opts.temperature,
+            frequency_penalty=opts.frequency_penalty,
+            presence_penalty=opts.presence_penalty,
+            top_p=opts.top_p,
+            min_p=opts.min_p,
+            top_k=opts.top_k,
             timeout=timeout,
             stream=True,
             logit_bias=logit_bias
@@ -242,9 +234,9 @@ def call_function(function_args):
             model=gpt_snapshot,
             messages=message_plus_system,
             max_tokens=opts.max_tokens,
-            temperature=temperature,
-            frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty,
+            temperature=opts.temperature,
+            frequency_penalty=opts.frequency_penalty,
+            presence_penalty=opts.presence_penalty,
             timeout=timeout,
             logit_bias=logit_bias
             )
@@ -260,6 +252,7 @@ def call_function(function_args):
 
 def generate_system_prompt_object():
     # create object with system prompt and other realtime info
+    
     content = "\n"
     content += f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M:%S %p")} Eastern Standard Time.'
     if opts.gpt != 'custom':
@@ -269,7 +262,17 @@ def generate_system_prompt_object():
         content += f'\nWorld Name: {funcs.log_parser.world_name}'
         content += f'\nInstance ID: {funcs.log_parser.instance_id}'
         content += f'\nInstance Privacy: {funcs.log_parser.instance_privacy}'
-    sp = [{"role": "system", "content":
+        
+        player_list = funcs.get_player_list()
+        player_count = funcs.get_player_count()
+        if player_list != None and player_count != None:
+            content += f'\nThere are {player_count} players in this instance: '
+            player_list = ', '.join(player_list)
+            content += player_list
+    
+    content += "\n\n"
+
+    system_prompt = [{"role": "system", "content":
            opts.system_prompt
            + content}]
-    return sp
+    return system_prompt
