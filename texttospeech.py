@@ -36,30 +36,29 @@ def to_wav_bytes(file, speed=1.0):
         return BytesIO(stdout)
     except Exception as e:
         raise RuntimeError(f"Failed to convert audio: {e}") from e
- 
+
 
 def filter(string):
     """ Makes words in input string pronuncable by TTS """
-    replacements = {
-        '```': 'code.',
-        '`': '',
+    replacements = [
+        (re.escape('```'), 'code: '),
+        (re.escape('`'), ''),
+        (re.escape('~'), ''),
+        (re.escape('*'), ''),
+        (re.escape('missingno'), 'missing no'),
+        (re.escape('missingo123'), 'missing no one two three'),
+        (re.escape('vrchat'), 'VR Chat'),
+        (re.escape('nya'), 'nyaa'),
+        (re.compile("[\U0001F000-\U0001FFFF]+", flags=re.UNICODE), ''),
+        (re.compile("[:;]-?[)DPO\(]+", flags=re.UNICODE), '')
         # '💬': '',
         # '🤖':'',
-        '~': '',
-        '*': '',
-        'missingno': 'missing no',
-        'missingo123': 'missing no one two three',
-        'vrchat': 'VR Chat',
-        'nya': 'nyaa'
-    }
+    ]
     
-    for word, replacement in replacements.items():
-        word_pattern = re.escape(word)
-        string = re.sub(word_pattern, replacement, string, flags=re.IGNORECASE)
-    emoji_pattern = re.compile("[\U0001F000-\U0001FFFF]+", flags=re.UNICODE)
-    string = re.sub(emoji_pattern, r'', string)
+    for pattern, replacement in replacements:
+        string = re.sub(pattern, replacement, string, flags=re.IGNORECASE)
+    
     return string
-
 
 
 class WindowsTTS():
