@@ -258,7 +258,7 @@ def generate_system_prompt_object():
     if opts.gpt != 'custom':
         content += f' You are using {opts.gpt} from OpenAI.'
     if (funcs.log_parser.running):
-        content += "\nHere is some information about what's happening in the current VRChat instance:"
+        content += "\nHere is some information about what's happening in the current VRChat world:"
         content += f'\nWorld Name: {funcs.log_parser.world_name}'
         content += f'\nInstance ID: {funcs.log_parser.instance_id}'
         content += f'\nInstance Privacy: {funcs.log_parser.instance_privacy}'
