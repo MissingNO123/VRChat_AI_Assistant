@@ -155,6 +155,9 @@ def load_config():
     with open (config_file, 'r', encoding='utf8') as config:
         config_data = json.load(config)
         for key, value in config_data.items():
+            if key == "safe_keys":
+                print( f'!! Detected attempt to override safe keys, not loading' )
+                continue
             if key in safe_keys:
                 if not type(value) == type(globals()[key]):
                     if key == "key_trigger_key":
