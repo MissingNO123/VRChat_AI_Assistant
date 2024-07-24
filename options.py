@@ -32,7 +32,8 @@ in_dev_name = "VoiceMeeter Aux Output"  # Input  (mic)
 out_dev_name = "VoiceMeeter Aux Input"  # Output (tts)
 
 # GPT generation options
-gpt = "custom"                  # GPT-3 | GPT-4 | custom
+gpt = "GPT-4"                  # GPT-3 | GPT-4 | custom
+custom_model_name = ""          # Custom model name to use if GPT is set to custom
 custom_api_url = "http://localhost:1234/v1" # Server to use if GPT is set to custom               
 max_tokens = 200                # Max tokens that will try to generate
 max_conv_length = 10            # Max length of conversation buffer
@@ -94,9 +95,11 @@ safe_keys = [
     "whisper_task",
     "whisper_device",
     "whisper_compute_type",
+
     "vrc_ip",
     "vrc_osc_inport",
     "vrc_osc_outport",
+
     "verbosity",
     "chatbox",
     "parrot_mode",
@@ -104,9 +107,12 @@ safe_keys = [
     "audio_trigger_enabled",
     "key_trigger_key",
     "key_press_window",
+
     "in_dev_name",
     "out_dev_name",
+
     "gpt",
+    "custom_model_name",
     "custom_api_url",
     "max_tokens",
     "max_conv_length",
@@ -116,6 +122,7 @@ safe_keys = [
     "top_p",
     "min_p",
     "top_k",
+
     "tts_engine_name",
     "windows_tts_voice_id",
     "eleven_voice_id",
@@ -125,10 +132,12 @@ safe_keys = [
     "gcloud_tts_type",
     "gcloud_letter_id",
     "gcloud_voice_name",
+
     "THRESHOLD",
     "MAX_RECORDING_TIME",
     "SILENCE_TIMEOUT",
     "OUTPUT_FILENAME",
+    
     "bot_name",
     "bot_personality",
     "system_prompt",
