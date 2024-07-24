@@ -291,14 +291,17 @@ class AIStuffFrame(customtkinter.CTkFrame):
 
     def _save_config(self):
         popup = Popup_YesNo(self, window_title="Save Config", window_text="Are you sure you want to save the current configuration?", button_confirm_text="Save", button_deny_text="Cancel", button_confirm_command=self._save_config_command)
+        popup.after(250, popup.focus) # Why do I need to wait for this???
 
     def _save_config_command(self):
         try:
             opts.save_config()
             popup = Popup(self, window_title="Config Saved", window_text="The configuration has been saved successfully.", button_text="OK")
+            popup.after(250, popup.focus) # Why do I need to wait for this???
         except Exception as e:
             print(f"Error saving config: {e}")
             popup = Popup(self, window_title="Error Saving Config", window_text="There was an error saving the configuration.", button_text="OK") 
+            popup.after(250, popup.focus) # Why do I need to wait for this???
 
     def _reset_chat_buffer(self):
         opts.message_array = []
