@@ -116,7 +116,6 @@ safe_keys = [
     "top_p",
     "min_p",
     "top_k",
-    "tts_engine",
     "tts_engine_name",
     "windows_tts_voice_id",
     "eleven_voice_id",
