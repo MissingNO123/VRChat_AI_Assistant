@@ -6,7 +6,7 @@ import speech_recognition as sr
 import time
 from queue import Queue
 
-from Tests.whisper_online import FasterWhisperASR, OnlineASRProcessor
+from whisper_online import FasterWhisperASR, OnlineASRProcessor
 
 import options as opts
 import functions as funcs
