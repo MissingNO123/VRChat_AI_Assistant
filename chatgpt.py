@@ -132,7 +132,7 @@ def generate(text="", return_completion=False):
         print()
         funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
         # result = completion.choices[0].message.content
-        result = completion_text
+        result = completion_text.strip()
         funcs.append_bot_message(funcs.inverse_title_case(result))
         # print(f"\n>AI: {result}")
         opts.generating = False

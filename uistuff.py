@@ -897,13 +897,14 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
         opts.message_array = []
         opts.message_array = opts.example_messages.copy()
         print(f'$ Messages cleared!')
+        self.after(1000, self.refresh_messages)
 
 
     def _start_send(self, event=None):
-        if opts.generating: return
+        while opts.generating: time.sleep(0.1)
         user_text = self.text_entry.get().strip()
         if len(user_text) > 0:
-            opts.bot_responded = False
+            # opts.bot_responded = False
             self.button_send.configure(text="Wait...", state="disabled")
             self.textfield_text_entry.configure(state="disabled")
             print(f'\nUser: {user_text}')
@@ -951,7 +952,7 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
                 self.result = chatgpt.call_function(function_args)
                 self.addtext(self.result)
             else: 
-                self.result = completion_text
+                self.result = completion_text.strip()
                 if len(self.result):
                     funcs.append_bot_message(self.result)
             funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
@@ -963,15 +964,15 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
             self._end_send()
 
     def _end_send(self):
-        # if self.result is None or len(self.result) == 0: 
-        #     funcs.v_print("!!No text to speak")
-        # else:
-        #     if opts.chatbox and len(self.result) > 140:
-        #         funcs.cut_up_text(self.result)
-        #     else:
-        #         text = '🤖 ' + self.result if (not opts.parrot_mode) else '💬 ' + self.result
-        #         vrc.chatbox(f'{text}')
-        #         if len(self.result): funcs.tts(self.result)
+        if self.result is None or len(self.result) == 0: 
+            funcs.v_print("!!No text to speak")
+        else:
+            if opts.chatbox and len(self.result) > 140:
+                funcs.cut_up_text(self.result)
+            else:
+                text = '🤖 ' + self.result if (not opts.parrot_mode) else '💬 ' + self.result
+                vrc.chatbox(f'{text}')
+                if len(self.result): funcs.tts(self.result)
         self.textfield_text_entry.configure(state="normal")
         self.button_send.configure(text="Send", state="normal")
         self.refresh_messages()
