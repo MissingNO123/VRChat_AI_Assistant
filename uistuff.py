@@ -61,7 +61,11 @@ icon = os.getcwd() + "\\icon.ico"
 class Popup(customtkinter.CTkToplevel):
     def __init__(self, master, window_title, window_text, button_text, *args, **kwargs):
         super().__init__(master)
-        self.geometry("300x150")
+        w = 400
+        h = 150
+        #spawn the window centered within the parent window
+        x = master.winfo_x() + (master.winfo_width() // 2) - (w // 2)
+        y = master.winfo_y() + (master.winfo_height() // 2) - (h // 2)
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
         self.grid_rowconfigure((0,2), weight=0)
@@ -77,10 +81,13 @@ class Popup(customtkinter.CTkToplevel):
         self.button = customtkinter.CTkButton(self, text=button_text, command=self.destroy)
         self.button.grid(row=2, column=0, sticky="s", padx=10, pady=(2,10))
 
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+
 
 class Popup_YesNo(customtkinter.CTkToplevel):
     def __init__(self, master, window_title, window_text, button_confirm_text, button_deny_text, button_confirm_command=None, button_deny_command=None):
-        super().__init__(None)
+        super().__init__(master)
         w = 400
         h = 150
         #spawn the window centered within the parent window
@@ -121,6 +128,7 @@ class Popup_YesNo(customtkinter.CTkToplevel):
     
     def on_close(self):
         self._cancel_button_pressed()
+        self.destroy()
 
 
 class ProgramOptionsFrame(customtkinter.CTkFrame):
@@ -264,11 +272,11 @@ class AIStuffFrame(customtkinter.CTkFrame):
         # row += 1
 
         self.button_spawn_chat_box = customtkinter.CTkButton(self, text="Open Conversation Window", command=self._spawn_manual_entry)
-        self.button_spawn_chat_box.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
+        self.button_spawn_chat_box.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,2))
         row += 1
 
         self.button_save = customtkinter.CTkButton(self, text="Save Config", command=self._save_config)
-        self.button_save.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=10)
+        self.button_save.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
         row += 1
 
         self.textbox_system_prompt.bind("<FocusOut>", self._set_variables)
@@ -296,12 +304,12 @@ class AIStuffFrame(customtkinter.CTkFrame):
     def _save_config_command(self):
         try:
             opts.save_config()
-            popup = Popup(self, window_title="Config Saved", window_text="The configuration has been saved successfully.", button_text="OK")
-            popup.after(250, popup.focus) # Why do I need to wait for this???
+            popup_success = Popup(self, window_title="Config Saved", window_text="The configuration has been saved successfully.", button_text="OK")
+            popup_success.after(250, popup_success.focus) # Why do I need to wait for this???
         except Exception as e:
             print(f"Error saving config: {e}")
-            popup = Popup(self, window_title="Error Saving Config", window_text="There was an error saving the configuration.", button_text="OK") 
-            popup.after(250, popup.focus) # Why do I need to wait for this???
+            popup_failure = Popup(self, window_title="Error Saving Config", window_text="There was an error saving the configuration.", button_text="OK") 
+            popup_failure.after(250, popup_failure.focus) # Why do I need to wait for this???
 
     def _reset_chat_buffer(self):
         opts.message_array = []
@@ -1174,7 +1182,7 @@ class App(customtkinter.CTk):
         super().__init__()
 
         self.title("VRChat AI Assistant")
-        self.geometry("860x730")
+        self.geometry("860x738")
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure((1,2), weight=1)
         self.grid_rowconfigure(0, weight=0)
