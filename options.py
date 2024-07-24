@@ -118,7 +118,6 @@ safe_keys = [
     "top_k",
     "tts_engine",
     "tts_engine_name",
-    "tts_engine_selections",
     "windows_tts_voice_id",
     "eleven_voice_id",
     "tiktok_voice_id",

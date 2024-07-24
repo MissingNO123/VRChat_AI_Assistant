@@ -28,13 +28,6 @@
   "top_k": 69,
   "tts_engine": null,
   "tts_engine_name": "Google Translate",
-  "tts_engine_selections": [
-    "Windows",
-    "Google Cloud",
-    "Google Translate",
-    "ElevenLabs",
-    "TikTok"
-  ],
   "windows_tts_voice_id": 0,
   "eleven_voice_id": "Phillip",
   "tiktok_voice_id": "English US Female",
