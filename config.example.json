@@ -12,7 +12,7 @@
   "parrot_mode": false,
   "soundFeedback": true,
   "audio_trigger_enabled": false,
-  "key_trigger_key": "Key.ctrl_r",
+  "key_trigger_key": "ctrl_r",
   "key_press_window": 0.4,
   "in_dev_name": "VoiceMeeter Aux Output",
   "out_dev_name": "VoiceMeeter Aux Input",
