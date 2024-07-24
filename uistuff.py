@@ -122,57 +122,90 @@ class AIStuffFrame(customtkinter.CTkFrame):
         self.manual_entry_window_is_open = customtkinter.BooleanVar(value=False)
         
         self.whisper_prompt = customtkinter.StringVar(value=opts.whisper_prompt)
+        self.bot_name = customtkinter.StringVar(value=opts.bot_name)
         self.selected_whisper_model = customtkinter.StringVar(value=opts.whisper_model)
         self.gpt_radio_var = customtkinter.IntVar(value=0 if opts.gpt == "GPT-3" else 1 if opts.gpt == "GPT-4" else 2 if opts.gpt == "custom" else 0)
         self.max_tokens_var = customtkinter.IntVar(value=opts.max_tokens)
         self.max_conv_length_var = customtkinter.IntVar(value=opts.max_conv_length)
         self.sytem_prompt_var = customtkinter.StringVar(value=opts.system_prompt)
 
+        row = 1
+
         self.label_whisper_prompt = customtkinter.CTkLabel(self, text="Whisper Prompt: ", fg_color="transparent")
-        self.label_whisper_prompt.grid(row=1, column=0, columnspan=2, sticky="w", pady=(4,1), padx=5)
+        self.label_whisper_prompt.grid(row=row, column=0, columnspan=2, sticky="w", pady=(4,1), padx=5)
+        row += 1
         self.textfield_whisper_prompt = customtkinter.CTkEntry(self, width=200, placeholder_text="Whisper Prompt...", textvariable=self.whisper_prompt)
-        self.textfield_whisper_prompt.grid(row=2, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
-
-        self.label_whisper_model = customtkinter.CTkLabel(self, text="Whisper Model: ", fg_color="transparent")
-        self.label_whisper_model.grid(row=3, column=0, columnspan=2, sticky="w", pady=(4,1), padx=5)
-        self.dropdown_whisper_model = customtkinter.CTkOptionMenu(self, variable=self.selected_whisper_model, values=self.whispermodels, command=self._set_whisper_model)
-        self.dropdown_whisper_model.grid(row=4, column=0, columnspan=3, sticky="ew", padx=10)
-
+        self.textfield_whisper_prompt.grid(row=row, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
+        row += 1
+        # self.label_whisper_model = customtkinter.CTkLabel(self, text="Whisper Model: ", fg_color="transparent")
+        # self.label_whisper_model.grid(row=row, column=0, columnspan=2, sticky="w", pady=(4,1), padx=5)
+        # row += 1
+        # self.dropdown_whisper_model = customtkinter.CTkOptionMenu(self, variable=self.selected_whisper_model, values=self.whispermodels, command=self._set_whisper_model)
+        # self.dropdown_whisper_model.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10)
+        # row += 1
         self.label_gpt_picker = customtkinter.CTkLabel(self, text="OpenAI GPT Model: ", fg_color="transparent")
-        self.label_gpt_picker.grid(row=5, column=0, sticky="w", pady=(4,1), padx=5)
+        self.label_gpt_picker.grid(row=row, column=0, sticky="w", pady=(4,1), padx=5)
+        row += 1
+
         self.radiobutton_gpt_3 = customtkinter.CTkRadioButton(self, text="GPT-3", command=self._set_variables, variable=self.gpt_radio_var, value=0)
-        self.radiobutton_gpt_3.grid(row=6, column=0, padx=10)
+        self.radiobutton_gpt_3.grid(row=row, column=0, padx=10)
         self.radiobutton_gpt_4 = customtkinter.CTkRadioButton(self, text="GPT-4", command=self._set_variables, variable=self.gpt_radio_var, value=1)
-        self.radiobutton_gpt_4.grid(row=6, column=1)
+        self.radiobutton_gpt_4.grid(row=row, column=1)
         self.radiobutton_gpt_custom = customtkinter.CTkRadioButton(self, text="Custom", command=self._set_variables, variable=self.gpt_radio_var, value=2)
-        self.radiobutton_gpt_custom.grid(row=6, column=2)
+        self.radiobutton_gpt_custom.grid(row=row, column=2)
 
         self.label_max_tokens = customtkinter.CTkLabel(self, text="GPT Max Tokens: ", fg_color="transparent")
-        self.label_max_tokens.grid(row=7, column=0, sticky="w", pady=(4,1), padx=5)
+        self.label_max_tokens.grid(row=row, column=0, sticky="w", pady=(4,1), padx=5)
+        row += 1
         self.spinbox_max_tokens = IntSpinbox(self, step_size=4, min=0, max=8192, value=self.max_tokens_var.get(), command=self._spinbox_callback)
-        self.spinbox_max_tokens.grid(row=8, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
+        self.spinbox_max_tokens.grid(row=row, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
+        row += 1
 
         self.label_max_conv_length = customtkinter.CTkLabel(self, text="GPT Max Conv. Length: ", fg_color="transparent")
-        self.label_max_conv_length.grid(row=9, column=0, sticky="w", pady=(4,1), padx=5)
+        self.label_max_conv_length.grid(row=row, column=0, sticky="w", pady=(4,1), padx=5)
+        row += 1
         self.spinbox_max_conv_length = IntSpinbox(self, step_size=1, min=2, value=self.max_conv_length_var.get(), command=self._spinbox_callback)
-        self.spinbox_max_conv_length.grid(row=10, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
+        self.spinbox_max_conv_length.grid(row=row, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
+        row += 1
 
-        self.label_system_prompt = customtkinter.CTkLabel(self, text="GPT System Prompt: ", fg_color="transparent")
-        self.label_system_prompt.grid(row=11, column=0, sticky="w", pady=(4,1), padx=5)
+        self.label_bot_name = customtkinter.CTkLabel(self, text="Bot Name: ", fg_color="transparent")
+        self.label_bot_name.grid(row=row, column=0, columnspan=2, sticky="w", pady=(4,1), padx=5)
+        row += 1
+        self.textfield_bot_name = customtkinter.CTkEntry(self, width=200, placeholder_text="Bot", textvariable=self.bot_name)
+        self.textfield_bot_name.grid(row=row, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
+        row += 1
+
+        self.label_persona = customtkinter.CTkLabel(self, text="Bot's Persona: ", fg_color="transparent")
+        self.label_persona.grid(row=row, column=0, sticky="w", pady=(4,1), padx=5)
+        row += 1
+        self.textbox_persona = customtkinter.CTkTextbox(self, height=122, wrap="word")
+        self.textbox_persona.insert("0.0", opts.bot_personality)
+        self.textbox_persona.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(0,2))
+        row += 1
+
+        self.label_system_prompt = customtkinter.CTkLabel(self, text="System Instruction: ", fg_color="transparent")
+        self.label_system_prompt.grid(row=row, column=0, sticky="w", pady=(4,1), padx=5)
+        row += 1
         self.textbox_system_prompt = customtkinter.CTkTextbox(self, height=122, wrap="word")
         self.textbox_system_prompt.insert("0.0", opts.system_prompt)
-        self.textbox_system_prompt.grid(row=12, column=0, columnspan=3, sticky="ew", padx=10, pady=(0,2))
+        self.textbox_system_prompt.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(0,2))
+        row += 1
         # self.button_system_prompt = customtkinter.CTkButton(self, text="Update System Prompt", command=self._set_variables)
         # self.button_system_prompt.grid(row=13, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
 
-        self.button_reset = customtkinter.CTkButton(self, text="Clear Message History", command=self._reset_chat_buffer)
-        self.button_reset.grid(row=13, column=0, columnspan=3, sticky="ew", padx=10, pady=10)
+        # self.button_reset = customtkinter.CTkButton(self, text="Clear Message History", command=self._reset_chat_buffer)
+        # self.button_reset.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=10)
+        # row += 1
 
         self.button_spawn_chat_box = customtkinter.CTkButton(self, text="Open Conversation Window", command=self._spawn_manual_entry)
-        self.button_spawn_chat_box.grid(row=14, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
+        self.button_spawn_chat_box.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
+        row += 1
 
         self.textbox_system_prompt.bind("<FocusOut>", self._set_variables)
         self.textbox_system_prompt.bind("<Return>", self._set_variables)
+
+        self.textbox_persona.bind("<FocusOut>", self._set_variables)
+        self.textbox_persona.bind("<Return>", self._set_variables)
 
         self.textfield_whisper_prompt.bind("<FocusOut>", self._set_variables)
         self.textfield_whisper_prompt.bind("<Return>", self._set_variables)
@@ -216,6 +249,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
 
     def _set_variables(self, event=None):
         opts.system_prompt = self.textbox_system_prompt.get("0.0", "end")
+        opts.bot_personality = self.textbox_persona.get("0.0", "end")
         value = self.gpt_radio_var.get()
         # opts.gpt = "GPT-3" if value == 0 else "GPT-4"
         match value:
@@ -777,11 +811,13 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
         if opts.generating: return
         user_text = self.text_entry.get().strip()
         if len(user_text) > 0:
+            opts.bot_responded = False
             self.button_send.configure(text="Wait...", state="disabled")
             self.textfield_text_entry.configure(state="disabled")
             print(f'\nUser: {user_text}')
             self.text_entry.set("")
             self.addtext("\n---\nUser: " + user_text)
+            funcs.append_user_message(user_text)
             # generate_thread = threading.Thread(target=self._generate, args=(user_text=user_text,))
             if opts.parrot_mode:
                 self.result = user_text
@@ -795,6 +831,7 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
         self.result = None
         start_time = time.perf_counter()
         try:
+            # funcs.append_user_message(user_text)
             completion = chatgpt.generate(user_text, True)
             completion_text = ''
             is_function_call = False
@@ -824,25 +861,25 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
             else: 
                 self.result = completion_text
                 if len(self.result):
-                    opts.message_array.append({"role": "assistant", "content": self.result})
+                    funcs.append_bot_message(self.result)
             funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
             print()
-        except Exception:
-            print('Failed to generate from LLM')
+        except Exception as e:
+            print(f'Failed to generate from LLM: {str(e)}')
         finally:
             opts.generating = False
             self._end_send()
 
     def _end_send(self):
-        if self.result is None or len(self.result) == 0: 
-            funcs.v_print("!!No text to speak")
-        else:
-            if opts.chatbox and len(self.result) > 140:
-                funcs.cut_up_text(self.result)
-            else:
-                text = '🤖 ' + self.result if (not opts.parrot_mode) else '💬 ' + self.result
-                vrc.chatbox(f'{text}')
-                if len(self.result): funcs.tts(self.result)
+        # if self.result is None or len(self.result) == 0: 
+        #     funcs.v_print("!!No text to speak")
+        # else:
+        #     if opts.chatbox and len(self.result) > 140:
+        #         funcs.cut_up_text(self.result)
+        #     else:
+        #         text = '🤖 ' + self.result if (not opts.parrot_mode) else '💬 ' + self.result
+        #         vrc.chatbox(f'{text}')
+        #         if len(self.result): funcs.tts(self.result)
         self.textfield_text_entry.configure(state="normal")
         self.button_send.configure(text="Send", state="normal")
         self.refresh_messages()
@@ -1073,7 +1110,7 @@ class App(customtkinter.CTk):
         super().__init__()
 
         self.title("VRChat AI Assistant")
-        self.geometry("840x630")
+        self.geometry("860x730")
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure((1,2), weight=1)
         self.grid_rowconfigure(0, weight=0)

@@ -40,6 +40,7 @@ def to_wav_bytes(file, speed=1.0):
 
 def filter(string):
     """ Makes words in input string pronuncable by TTS """
+    flags = re.UNICODE | re.IGNORECASE
     replacements = [
         (re.escape('```'), 'code: '),
         (re.escape('`'), ''),
@@ -49,14 +50,14 @@ def filter(string):
         (re.escape('missingo123'), 'missing no one two three'),
         (re.escape('vrchat'), 'VR Chat'),
         (re.escape('nya'), 'nyaa'),
-        (re.compile("[\U0001F000-\U0001FFFF]+", flags=re.UNICODE), ''),
-        (re.compile("[:;]-?[)DPO\(]+", flags=re.UNICODE), '')
+        (re.compile("[\U0001F000-\U0001FFFF]+", flags=flags), ''), # remove emoji
+        (re.compile("[:;]-?[)DPO\(3c/]+", flags=flags), '') # remove emoticons
         # '💬': '',
         # '🤖':'',
     ]
     
     for pattern, replacement in replacements:
-        string = re.sub(pattern, replacement, string, flags=re.IGNORECASE)
+        string = re.sub(pattern, replacement, string)
     
     return string
 

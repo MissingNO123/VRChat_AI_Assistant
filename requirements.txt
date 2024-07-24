@@ -11,3 +11,9 @@ google-cloud-texttospeech
 pynput
 pyttsx3
 customtkinter
+SpeechRecognition
+librosa
+soundfile
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch
+numpy

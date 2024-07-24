@@ -26,6 +26,26 @@ def v_print(text):
     if opts.verbosity:
         print(text)
 
+def queue_message(message):
+    """ Queues a message to be spoken by the bot """
+    if len(message) == 0:
+        print("!!Trying to append empty message to array")
+        return
+    opts.message_queue.append(message)
+
+def append_user_message(message):
+    """ Appends user message to the conversation buffer """
+    if len(message) == 0:
+        print("!!Trying to append empty message to array")
+        return
+    opts.message_array.append({"role": "user", "content": message})
+
+def append_bot_message(message):
+    """ Appends bot message to the conversation buffer """
+    if len(message) == 0:
+        print("!!Trying to append empty message to array")
+        return
+    opts.message_array.append({"role": "assistant", "content": message})
 
 def init_audio():
     global vb_in
@@ -217,6 +237,13 @@ def cut_up_text(text):
         play_sound(audio)
         audio.close()
     opts.speaking = False
+
+
+def inverse_title_case(text):
+    """ Inverse title case for text """
+    # lower case the first letter of each word
+    # return text[0].lower() + ' '.join([word[0].lower() + word[1:] for word in text[1:].split()])
+    return ' '.join([word[0].lower() + word[1:] for word in text.split()])
 
 
 def tts(text):
