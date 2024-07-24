@@ -15,7 +15,6 @@ whisper_compute_type = "int8_float16"   # int8 | int8_float16 | float16 | float3
 
 # VRChat options
 vrc_ip = "127.127.127.127"  # IP and Ports for VRChat OSC
-# vrc_ip = "192.168.2.43"
 #vrc_ip = "::1"  # IPv6
 vrc_osc_inport = 9000
 vrc_osc_outport = 9001
@@ -155,7 +154,6 @@ def save_config():
 def load_config():
     with open (config_file, 'r', encoding='utf8') as config:
         config_data = json.load(config)
-        # read in config data
         for key, value in config_data.items():
             if key in safe_keys:
                 if not type(value) == type(globals()[key]):
@@ -164,7 +162,7 @@ def load_config():
                             trigger_key = getattr(Key, value)
                             value = trigger_key
                         except AttributeError:
-                            print( f'!! { key } has wrong type in config file, not loading' )
+                            print( f'!! { key } invalid trigger key, not loading' )
                             continue   
                     else:
                         print( f'!! { key } has wrong type in config file, not loading' )
@@ -177,9 +175,9 @@ def load_config():
             else:
                 print( f'!! "{key}" found in config file doesn\'t correlate to a setting' )
     
+    global message_array
     message_array = example_messages.copy()
 
 
 if os.path.exists(config_file):
     load_config()
-    pass # for breakpoint

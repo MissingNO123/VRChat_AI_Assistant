@@ -7,7 +7,6 @@ import time
 full_start_time = time.perf_counter()
 import audioop
 from datetime import datetime
-from dotenv import load_dotenv
 # import whisper
 from faster_whisper import WhisperModel
 import ffmpeg
@@ -17,6 +16,10 @@ from pynput.keyboard import Listener
 import re
 import threading
 import wave
+
+from dotenv import load_dotenv
+load_dotenv()
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 import options as opts
 import texttospeech as ttsutils
@@ -28,9 +31,6 @@ import listening
 
 import os
 os.system('cls' if os.name=='nt' else 'clear')
-
-load_dotenv()
-openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # OPTIONS ####################################################################################################################################
 CHUNK_SIZE = 1024           # number of frames read at a time
