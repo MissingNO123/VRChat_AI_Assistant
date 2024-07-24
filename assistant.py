@@ -1,6 +1,7 @@
 # Copyright (C) MissingNO123 17 Mar 2023
 # Description: Main program for the VRChat Assistant
 
+import os
 from io import BytesIO
 import sys
 import time
@@ -29,7 +30,6 @@ import vrcutils as vrc
 import functions as funcs
 import listening
 
-import os
 os.system('cls' if os.name=='nt' else 'clear')
 
 # OPTIONS ####################################################################################################################################

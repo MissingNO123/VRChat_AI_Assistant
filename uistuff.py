@@ -57,6 +57,80 @@ Frame 6: Direct Text Input
 app = None
 icon = os.getcwd() + "\\icon.ico"
 
+
+class Popup(customtkinter.CTkToplevel):
+    def __init__(self, master, window_title, window_text, button_text, *args, **kwargs):
+        super().__init__(master)
+        w = 400
+        h = 150
+        #spawn the window centered within the parent window
+        x = master.winfo_x() + (master.winfo_width() // 2) - (w // 2)
+        y = master.winfo_y() + (master.winfo_height() // 2) - (h // 2)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure((0,2), weight=0)
+        self.title(window_title)
+        self.iconbitmap(icon)
+
+        self.titlebar = customtkinter.CTkLabel( self, text=window_title, fg_color="gray30", corner_radius=6 )
+        self.titlebar.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="ew")
+
+        self.label = customtkinter.CTkLabel(self, text=window_text, fg_color="gray10", corner_radius=6, wraplength=260)
+        self.label.grid(row=1, column=0, sticky='nsew', padx=20, pady=5)
+
+        self.button = customtkinter.CTkButton(self, text=button_text, command=self.destroy)
+        self.button.grid(row=2, column=0, sticky="s", padx=10, pady=(2,10))
+
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+
+
+class Popup_YesNo(customtkinter.CTkToplevel):
+    def __init__(self, master, window_title, window_text, button_confirm_text, button_deny_text, button_confirm_command=None, button_deny_command=None):
+        super().__init__(master)
+        w = 400
+        h = 150
+        #spawn the window centered within the parent window
+        x = master.winfo_x() + (master.winfo_width() // 2) - (w // 2)
+        y = master.winfo_y() + (master.winfo_height() // 2) - (h // 2)
+        self.grid_columnconfigure((0,1), weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure((0,2), weight=0)
+        self.title(window_title)
+
+        self.button_confirm_command = button_confirm_command
+        self.button_deny_command = button_deny_command
+
+        self.titlebar = customtkinter.CTkLabel( self, text=window_title, fg_color="gray30", corner_radius=6 )
+        self.titlebar.grid(row=0, column=0, columnspan=3, sticky="ew", padx=10, pady=10)
+
+        self.label = customtkinter.CTkLabel(self, text=window_text, fg_color="gray10", corner_radius=6, wraplength=360)
+        self.label.grid(row=1, column=0, columnspan=3, sticky='nsew', padx=20, pady=5)
+
+        self.button = customtkinter.CTkButton(self, text=button_deny_text, fg_color="#A52F62", hover_color="#82254d", command=self._cancel_button_pressed)
+        self.button.grid(row=2, column=0, sticky="sew", padx=(10,5), pady=(2,10))
+
+        self.button = customtkinter.CTkButton(self, text=button_confirm_text, command=self._ok_button_pressed)
+        self.button.grid(row=2, column=1, sticky="sew", padx=(5,10), pady=(2,10))
+
+        self.protocol("WM_DELETE_WINDOW",  self.on_close)
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+    def _ok_button_pressed(self):
+        if self.button_confirm_command:
+            self.button_confirm_command()
+        self.destroy()
+
+    def _cancel_button_pressed(self):
+        if self.button_deny_command:
+            self.button_deny_command()
+        self.destroy()
+    
+    def on_close(self):
+        self._cancel_button_pressed()
+        self.destroy()
+
+
 class ProgramOptionsFrame(customtkinter.CTkFrame):
     def __init__(self, master, title):
         super().__init__(master)
@@ -198,7 +272,11 @@ class AIStuffFrame(customtkinter.CTkFrame):
         # row += 1
 
         self.button_spawn_chat_box = customtkinter.CTkButton(self, text="Open Conversation Window", command=self._spawn_manual_entry)
-        self.button_spawn_chat_box.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
+        self.button_spawn_chat_box.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,2))
+        row += 1
+
+        self.button_save = customtkinter.CTkButton(self, text="Save Config", command=self._save_config)
+        self.button_save.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
         row += 1
 
         self.textbox_system_prompt.bind("<FocusOut>", self._set_variables)
@@ -218,6 +296,20 @@ class AIStuffFrame(customtkinter.CTkFrame):
             case "custom": value = 2
             case _:        value = 0
         self.gpt_radio_var.set(value)
+
+    def _save_config(self):
+        popup = Popup_YesNo(self, window_title="Save Config", window_text="Are you sure you want to save the current configuration?", button_confirm_text="Save", button_deny_text="Cancel", button_confirm_command=self._save_config_command)
+        popup.after(250, popup.focus) # Why do I need to wait for this???
+
+    def _save_config_command(self):
+        try:
+            opts.save_config()
+            popup_success = Popup(self, window_title="Config Saved", window_text="The configuration has been saved successfully.", button_text="OK")
+            popup_success.after(250, popup_success.focus) # Why do I need to wait for this???
+        except Exception as e:
+            print(f"Error saving config: {e}")
+            popup_failure = Popup(self, window_title="Error Saving Config", window_text="There was an error saving the configuration.", button_text="OK") 
+            popup_failure.after(250, popup_failure.focus) # Why do I need to wait for this???
 
     def _reset_chat_buffer(self):
         opts.message_array = []
@@ -805,13 +897,14 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
         opts.message_array = []
         opts.message_array = opts.example_messages.copy()
         print(f'$ Messages cleared!')
+        self.after(1000, self.refresh_messages)
 
 
     def _start_send(self, event=None):
-        if opts.generating: return
+        while opts.generating: time.sleep(0.1)
         user_text = self.text_entry.get().strip()
         if len(user_text) > 0:
-            opts.bot_responded = False
+            # opts.bot_responded = False
             self.button_send.configure(text="Wait...", state="disabled")
             self.textfield_text_entry.configure(state="disabled")
             print(f'\nUser: {user_text}')
@@ -859,7 +952,7 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
                 self.result = chatgpt.call_function(function_args)
                 self.addtext(self.result)
             else: 
-                self.result = completion_text
+                self.result = completion_text.strip()
                 if len(self.result):
                     funcs.append_bot_message(self.result)
             funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
@@ -871,38 +964,18 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
             self._end_send()
 
     def _end_send(self):
-        # if self.result is None or len(self.result) == 0: 
-        #     funcs.v_print("!!No text to speak")
-        # else:
-        #     if opts.chatbox and len(self.result) > 140:
-        #         funcs.cut_up_text(self.result)
-        #     else:
-        #         text = '🤖 ' + self.result if (not opts.parrot_mode) else '💬 ' + self.result
-        #         vrc.chatbox(f'{text}')
-        #         if len(self.result): funcs.tts(self.result)
+        if self.result is None or len(self.result) == 0: 
+            funcs.v_print("!!No text to speak")
+        else:
+            if opts.chatbox and len(self.result) > 140:
+                funcs.cut_up_text(self.result)
+            else:
+                text = '🤖 ' + self.result if (not opts.parrot_mode) else '💬 ' + self.result
+                vrc.chatbox(f'{text}')
+                if len(self.result): funcs.tts(self.result)
         self.textfield_text_entry.configure(state="normal")
         self.button_send.configure(text="Send", state="normal")
         self.refresh_messages()
-
-
-class Popup(customtkinter.CTkToplevel):
-    def __init__(self, master, window_title, window_text, button_text, *args, **kwargs):
-        super().__init__(master)
-        self.geometry("300x150")
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
-        self.grid_rowconfigure((0,2), weight=0)
-        self.title(window_title)
-        self.iconbitmap(icon)
-
-        self.titlebar = customtkinter.CTkLabel( self, text=window_title, fg_color="gray30", corner_radius=6 )
-        self.titlebar.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="ew")
-
-        self.label = customtkinter.CTkLabel(self, text=window_text, fg_color="gray10", corner_radius=6, wraplength=260)
-        self.label.grid(row=1, column=0, sticky='nsew', padx=20, pady=5)
-
-        self.button = customtkinter.CTkButton(self, text=button_text, command=self.destroy)
-        self.button.grid(row=2, column=0, sticky="s", padx=10, pady=(2,10))
 
 
 class IntSpinbox(customtkinter.CTkFrame):
@@ -1110,7 +1183,7 @@ class App(customtkinter.CTk):
         super().__init__()
 
         self.title("VRChat AI Assistant")
-        self.geometry("860x730")
+        self.geometry("860x738")
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure((1,2), weight=1)
         self.grid_rowconfigure(0, weight=0)
