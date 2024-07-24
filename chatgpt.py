@@ -86,7 +86,7 @@ def generate(text="", return_completion=False):
         message_plus_system += opts.example_messages # checks if any of the example messages are already in the message array
     message_plus_system += opts.message_array
     err = None
-    gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613" if opts.gpt == "GPT-4" else "custom"
+    gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613" if opts.gpt == "GPT-4" else opts.custom_model_name if opts.gpt == "custom" else "gpt-3.5-turbo-0613"
     try:
         vrc.chatbox('🤔 Thinking...')
         start_time = time.perf_counter()
@@ -102,8 +102,8 @@ def generate(text="", return_completion=False):
             top_k=opts.top_k,
             timeout=timeout,
             stream=True,
-            logit_bias=logit_bias,
-            functions=functions,
+            # logit_bias=logit_bias,  # doesn't work for LLaMA
+            # functions=functions,    # eats tokens
             function_call="auto"
             )
         if return_completion:

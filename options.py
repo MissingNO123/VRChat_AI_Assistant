@@ -32,7 +32,7 @@ in_dev_name = "VoiceMeeter Aux Output"  # Input  (mic)
 out_dev_name = "VoiceMeeter Aux Input"  # Output (tts)
 
 # GPT generation options
-gpt = "GPT-4"                  # GPT-3 | GPT-4 | custom
+gpt = "GPT-4"                   # GPT-3 | GPT-4 | custom
 custom_model_name = ""          # Custom model name to use if GPT is set to custom
 custom_api_url = "http://localhost:1234/v1" # Server to use if GPT is set to custom               
 max_tokens = 200                # Max tokens that will try to generate
@@ -137,7 +137,7 @@ safe_keys = [
     "MAX_RECORDING_TIME",
     "SILENCE_TIMEOUT",
     "OUTPUT_FILENAME",
-    
+
     "bot_name",
     "bot_personality",
     "system_prompt",
