@@ -1,0 +1,63 @@
+{
+  "whisper_prompt": "Hello, I am playing VRChat.",
+  "whisper_model": "medium",
+  "whisper_task": "transcribe",
+  "whisper_device": "cuda",
+  "whisper_compute_type": "int8_float16",
+  "vrc_ip": "127.127.127.127",
+  "vrc_osc_inport": 9000,
+  "vrc_osc_outport": 9001,
+  "verbosity": false,
+  "chatbox": true,
+  "parrot_mode": false,
+  "soundFeedback": true,
+  "audio_trigger_enabled": false,
+  "key_trigger_key": "Key.ctrl_r",
+  "key_press_window": 0.4,
+  "in_dev_name": "VoiceMeeter Aux Output",
+  "out_dev_name": "VoiceMeeter Aux Input",
+  "gpt": "custom",
+  "custom_api_url": "http://localhost:1234/v1",
+  "max_tokens": 200,
+  "max_conv_length": 10,
+  "temperature": 1.5,
+  "frequency_penalty": 1.2,
+  "presence_penalty": 0.5,
+  "top_p": 0.4,
+  "min_p": 0.01,
+  "top_k": 69,
+  "tts_engine": null,
+  "tts_engine_name": "Google Translate",
+  "tts_engine_selections": [
+    "Windows",
+    "Google Cloud",
+    "Google Translate",
+    "ElevenLabs",
+    "TikTok"
+  ],
+  "windows_tts_voice_id": 0,
+  "eleven_voice_id": "Phillip",
+  "tiktok_voice_id": "English US Female",
+  "gtrans_language_code": "en",
+  "gcloud_language_code": "en-US",
+  "gcloud_tts_type": "Neural2",
+  "gcloud_letter_id": "F",
+  "gcloud_voice_name": "en-US-Neural2-F",
+  "THRESHOLD": 1024,
+  "MAX_RECORDING_TIME": 30,
+  "SILENCE_TIMEOUT": 2,
+  "OUTPUT_FILENAME": "recording.wav",
+  "bot_name": "Bot",
+  "bot_personality": "You are a helpful AI assistant",
+  "system_prompt": "{bot_name}'s Persona: {bot_personality}\n\nUser's Persona: User is a regular human person. User's gender is unknown.\n\nScenario: {bot_name} is logged into the online social VR platform, VRChat. It is talking to User face-to-face. ",
+  "example_messages": [
+    {
+      "role": "user",
+      "content": "hello"
+    },
+    {
+      "role": "assistant",
+      "content": "hi, i'm playing vrchat"
+    }
+  ]
+}

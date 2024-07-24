@@ -26,6 +26,26 @@ def v_print(text):
     if opts.verbosity:
         print(text)
 
+def queue_message(message):
+    """ Queues a message to be spoken by the bot """
+    if len(message) == 0:
+        print("!!Trying to append empty message to array")
+        return
+    opts.message_queue.append(message)
+
+def append_user_message(message):
+    """ Appends user message to the conversation buffer """
+    if len(message) == 0:
+        print("!!Trying to append empty message to array")
+        return
+    opts.message_array.append({"role": "user", "content": message})
+
+def append_bot_message(message):
+    """ Appends bot message to the conversation buffer """
+    if len(message) == 0:
+        print("!!Trying to append empty message to array")
+        return
+    opts.message_array.append({"role": "assistant", "content": message})
 
 def init_audio():
     global vb_in
@@ -186,12 +206,12 @@ def cut_up_text(text):
 
     txt = text
     segments = []
-    while len(txt) > 144:
+    while len(txt) > 142:
         substrings = [' ', '.', ',', '!', '?', ')', ']', '}', '>', ':', ';', '"', '\n']
-        last_indices = [txt[:143].rfind(sub) for sub in substrings]
+        last_indices = [txt[:141].rfind(sub) for sub in substrings]
         last_space_index = max(last_indices)
         if last_space_index == -1:
-            last_space_index = 143
+            last_space_index = 141
         chunk = txt[:last_space_index]
         segments.append(chunk)
         txt = txt[last_space_index+1:]
@@ -219,6 +239,13 @@ def cut_up_text(text):
     opts.speaking = False
 
 
+def inverse_title_case(text):
+    """ Inverse title case for text """
+    # lower case the first letter of each word
+    # return text[0].lower() + ' '.join([word[0].lower() + word[1:] for word in text[1:].split()])
+    return ' '.join([word[0].lower() + word[1:] for word in text.split()])
+
+
 def tts(text):
     opts.speaking = True
     audioBytes = opts.tts_engine.tts(text)
@@ -236,6 +263,7 @@ class LogWatcher:
         self.running = False
         self.vrc_is_running = False
         self.last_line = 0
+        self.last_byte = 0
         self.log_file = None
         self.log_directory = None
         self.player_count = 0
@@ -281,15 +309,23 @@ class LogWatcher:
 
     def _watch_log_file(self):
         while self.vrc_is_running:
-            time.sleep(30)
+            time.sleep(3)
             if self.log_file:
-                new_last_line = len(open(self.log_file, encoding='utf-8').readlines())
-                if self.last_line < new_last_line:
-                    with open(self.log_file, "r", encoding='utf-8') as file:
-                        lines = file.readlines()[self.last_line:new_last_line]
+                # new_last_line = len(open(self.log_file, encoding='utf-8').readlines())
+                new_last_byte = os.path.getsize(self.log_file)
+                if self.last_byte < new_last_byte:
+                    with open(self.log_file, "rb") as file:
+                        file.seek(self.last_byte)
+                        lines = file.readlines()
                         if lines:
                             self._parse_log_lines(lines)
-                    self.last_line = new_last_line
+                    self.last_byte = new_last_byte
+                # if self.last_line < new_last_line:
+                #     with open(self.log_file, "r", encoding='utf-8') as file:
+                #         lines = file.readlines()[self.last_line:new_last_line]
+                #         if lines:
+                #             self._parse_log_lines(lines)
+                #     self.last_line = new_last_line
 
     def _get_log_file(self, directory):
         all_files = [os.path.join(directory, file) for file in os.listdir(directory)]
@@ -301,8 +337,8 @@ class LogWatcher:
 
     def _parse_log_lines(self, lines):
         for line in lines:
-            if line != "" and line != "\n":
-                l = line.strip()
+            if line != b"" and line != b"\r\n" and line != b"\n" :
+                l = line.decode('utf-8').strip()
                 self._parse_log_location(l)
                 self._parse_log_on_player_joined_or_left(l)
 

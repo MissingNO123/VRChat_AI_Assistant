@@ -36,30 +36,30 @@ def to_wav_bytes(file, speed=1.0):
         return BytesIO(stdout)
     except Exception as e:
         raise RuntimeError(f"Failed to convert audio: {e}") from e
- 
+
 
 def filter(string):
     """ Makes words in input string pronuncable by TTS """
-    replacements = {
-        '```': 'code.',
-        '`': '',
+    flags = re.UNICODE | re.IGNORECASE
+    replacements = [
+        (re.escape('```'), 'code: '),
+        (re.escape('`'), ''),
+        (re.escape('~'), ''),
+        (re.escape('*'), ''),
+        (re.escape('missingno'), 'missing no'),
+        (re.escape('missingo123'), 'missing no one two three'),
+        (re.escape('vrchat'), 'VR Chat'),
+        (re.escape('nya'), 'nyaa'),
+        (re.compile("[\U0001F000-\U0001FFFF]+", flags=flags), ''), # remove emoji
+        (re.compile("[:;]-?[)DPO\(3c/]+", flags=flags), '') # remove emoticons
         # '💬': '',
         # '🤖':'',
-        '~': '',
-        '*': '',
-        'missingno': 'missing no',
-        'missingo123': 'missing no one two three',
-        'vrchat': 'VR Chat',
-        'nya': 'nyaa'
-    }
+    ]
     
-    for word, replacement in replacements.items():
-        word_pattern = re.escape(word)
-        string = re.sub(word_pattern, replacement, string, flags=re.IGNORECASE)
-    emoji_pattern = re.compile("[\U0001F000-\U0001FFFF]+", flags=re.UNICODE)
-    string = re.sub(emoji_pattern, r'', string)
+    for pattern, replacement in replacements:
+        string = re.sub(pattern, replacement, string)
+    
     return string
-
 
 
 class WindowsTTS():
@@ -249,14 +249,18 @@ class ElevenTTS(ElevenLabs):
         if self.selected_voice is None:
             return None
 
-        request = self._request(
-            "POST",
-            "text-to-speech/%s" % self.selected_voice.id,
-            {
-                "text": filter(text),
-                "voice_settings": self.voice_settings
-            }
-        )
+        try:
+            request = self._request(
+                "POST",
+                "text-to-speech/%s" % self.selected_voice.id,
+                {
+                    "text": filter(text),
+                    "voice_settings": self.voice_settings
+                }
+            )
+        except Exception as e:
+            print(f"Failed to make request: {e}")
+            return None
 
         file = BytesIO()
         file.write(request.content)

@@ -1,4 +1,5 @@
 # Copyright (C) MissingNO123 17 Mar 2023
+# Description: Main program for the VRChat Assistant
 
 from io import BytesIO
 import sys
@@ -6,17 +7,19 @@ import time
 full_start_time = time.perf_counter()
 import audioop
 from datetime import datetime
-from dotenv import load_dotenv
 # import whisper
 from faster_whisper import WhisperModel
 import ffmpeg
-import openai
-import os
+import openai #0.28.0
 import pyaudio
 from pynput.keyboard import Listener
 import re
 import threading
 import wave
+
+from dotenv import load_dotenv
+load_dotenv()
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 import options as opts
 import texttospeech as ttsutils
@@ -24,9 +27,10 @@ import uistuff as ui
 import chatgpt
 import vrcutils as vrc
 import functions as funcs
+import listening
 
-load_dotenv()
-openai.api_key = os.getenv('OPENAI_API_KEY')
+import os
+os.system('cls' if os.name=='nt' else 'clear')
 
 # OPTIONS ####################################################################################################################################
 CHUNK_SIZE = 1024           # number of frames read at a time
@@ -99,9 +103,10 @@ def save_recorded_frames(frames):
         if opts.parrot_mode:
             text = transcription
         else: 
+            funcs.append_user_message(transcription)
             text = chatgpt.generate(transcription)
         if text is None: 
-            funcs.v_print("!!No text returned from ChatGPT")
+            funcs.v_print("!!No text returned from LLM")
         else:
             if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
                 ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
@@ -172,7 +177,7 @@ def openai_whisper_transcribe(recording):
 
         return None
     else:
-        # otherwise, forward text to ChatGPT
+        # otherwise, forward text to LLM
         vrc.set_parameter('VoiceRec_End', True)
         return result.text
         # chatgpt_req(result.text)
@@ -236,15 +241,15 @@ def faster_whisper_transcribe(recording):
 
     # if keyword detected, send to command handler instead
     if text.lower().startswith("system"):
-        command = re.sub(r'[^a-zA-Z0-9]', '', text[text.find(' ') + 1:])
-        handle_command(command.lower())
+        handle_command(text.lower())
         vrc.clear_prop_params()
         return None
     
     # otherwise, return the recognized text
     else:
         vrc.set_parameter('VoiceRec_End', True)
-        return text
+        # return text
+        return funcs.inverse_title_case(text)
 
 
 # def chatgpt_req(text):
@@ -280,7 +285,7 @@ def faster_whisper_transcribe(recording):
 #         funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
 #         result = completion.choices[0].message.content
 #         opts.message_array.append({"role": "assistant", "content": result})
-#         print(f"\n>ChatGPT: {result}")
+#         print(f"\n>AI: {result}")
 #         return result
 #     except openai.APIError as e:
 #         err = e
@@ -307,9 +312,11 @@ def faster_whisper_transcribe(recording):
 
 def handle_command(command):
     """ Handle voice commands """
+    command = re.sub(r'[^a-zA-Z0-9]', '', command[command.find(' ') + 1:])
     match command:
         case 'reset':
             opts.message_array = []
+            opts.message_array = opts.example_messages.copy()
             print(f'$ Messages cleared!')
             vrc.chatbox('🗑️ Cleared message buffer')
             funcs.play_sound('./prebaked_tts/Clearedmessagebuffer.wav')
@@ -466,8 +473,8 @@ streamIn = pyAudio.open(format=FORMAT,
 
 
 # Main loop - Wait for sound. If sound heard, record frames to wav file,
-#     then transcribe it with Whisper, then send that to ChatGPT, then
-#     take the text from ChatGPT and play it through TTS
+#     then transcribe it with Whisper, then send that to LLM, then
+#     take the text from LLM and play it through TTS
 def loop():
     # TODO: fix this global bullshit
     global full_end_time
@@ -555,6 +562,81 @@ def loop():
     streamIn.close()
     vrc.osc_server.shutdown()
 
+def loop2():
+    opts.LOOP = True
+
+    full_end_time = time.perf_counter()
+    print(f'--Program init took {full_end_time - full_start_time:.3f}s')
+
+    while model is None:
+        time.sleep(0.1)
+        pass
+
+    vrc.chatbox('✔️ Loaded')
+
+    while opts.LOOP:
+        try:
+            if not opts.bot_responded:
+                opts.bot_responded = True
+                while len(opts.message_queue): 
+                    text = opts.message_queue.pop(0)
+                    if text is not None:
+                        if text.lower().startswith("system"):
+                            handle_command(text.lower())
+                            continue
+                        else: 
+                            funcs.append_user_message(text)
+                if len(opts.message_array):
+                    last_message = opts.message_array[-1]["content"]
+
+                    if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
+                        ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
+
+                    if opts.parrot_mode:
+                        text = last_message
+                    else: 
+                        text = chatgpt.generate()
+
+                    if text is None: 
+                        funcs.v_print("!!No text returned from LLM")
+                    else:
+                        if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
+                            ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
+                            ui.app.ai_stuff_frame.manual_entry_window.button_send.configure(text="Send", state="normal")
+                            ui.app.ai_stuff_frame.manual_entry_window.textfield_text_entry.configure(state="normal")
+                        if opts.chatbox and len(text) > 140:
+                            funcs.cut_up_text(text)
+                        else:
+                            if opts.parrot_mode:
+                                e_text = '💬 ' + text
+                            else:
+                                e_text = '🤖 ' + text
+                            vrc.chatbox(f'{e_text}')
+                            if len(text): funcs.tts(e_text)
+
+                    vrc.set_parameter('VoiceRec_End', True)
+                    vrc.set_parameter('CGPT_Result', True)
+                    vrc.set_parameter('CGPT_End', True)
+            else:
+                if opts.panic: opts.panic = False
+                time.sleep(0.05)
+        except Exception as e:
+            print(f'!!Exception:\n{e}')
+            vrc.chatbox(f'⚠ {e}')
+            streamIn.close()
+            opts.LOOP = False
+            sys.exit(e)
+        except KeyboardInterrupt:
+            print('Keyboard interrupt')
+            vrc.chatbox(f'⚠ Quitting')
+            streamIn.close()
+            vrc.osc_server.shutdown()
+            opts.LOOP = False
+            sys.exit("KeyboardInterrupt")
+    print("Exiting, Bye!")
+    streamIn.close()
+    vrc.osc_server.shutdown()
+
 def start_server(server):  # (thread target) Starts OSC Listening server
     funcs.v_print(f'~Starting OSC Listener on {ip}:{outPort}')
     server.serve_forever()
@@ -573,13 +655,16 @@ serverThread = threading.Thread(
     name='oscserver-thread', target=start_server, args=(vrc.osc_server,), daemon=True)
 key_listener_thread = threading.Thread(name='keylistener-thread', target=start_key_listener, daemon=True)
 uithread = threading.Thread(name="ui-thread", target=start_ui, daemon=True)
-mainLoopThread = threading.Thread(name='mainloop-thread', target=loop)
+earsThread = threading.Thread(name='ears-thread', target=listening.run, daemon=True)
+mainLoopThread = threading.Thread(name='mainloop-thread', target=loop2)
+
 
 whisper_thread.start()
 serverThread.start()
 key_listener_thread.start()
 whisper_thread.join()  # Wait for Whisper to be loaded first before trying to use it
 uithread.start()
+earsThread.start()
 mainLoopThread.start()
 uithread.join()
 sys.exit(0)

@@ -17,16 +17,6 @@ logit_bias = {
 # frequency_penalty = 0.2
 # presence_penalty = 0.5
 
-temperature = 0.15
-frequency_penalty = 1.1
-presence_penalty = 0.5
-top_p = 0.1
-top_k = 40
-
-example_messages = [{"role": "user", "content": "hello"},
-                    {"role": "assistant", "content": "hi, im playing vrchat"},
-                    {"role": "user", "content": "who are you?"},
-                    {"role": "assistant", "content": "i am assistant, i am an ai"}]
 
 timeout = 20
 
@@ -84,16 +74,17 @@ functions=[
     }
 ]
 
-def generate(text, return_completion=False):
+def generate(text="", return_completion=False):
     """ Sends text to OpenAI, gets the response, and returns it """
     opts.generating = True
     while len(opts.message_array) > opts.max_conv_length:  # Trim down chat buffer if it gets too long
         opts.message_array.pop(0)
-    # Add user's message to the chat buffer
-    opts.message_array.append({"role": "user", "content": text})
     # Init system prompt with date and add it persistently to top of chat buffer
     system_prompt_object = generate_system_prompt_object()
-    message_plus_system = system_prompt_object + example_messages + opts.message_array
+    message_plus_system = system_prompt_object 
+    if not any(msg in opts.message_array[:len(opts.example_messages)] for msg in opts.example_messages):
+        message_plus_system += opts.example_messages # checks if any of the example messages are already in the message array
+    message_plus_system += opts.message_array
     err = None
     gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613" if opts.gpt == "GPT-4" else "custom"
     try:
@@ -103,11 +94,12 @@ def generate(text, return_completion=False):
             model=gpt_snapshot,
             messages=message_plus_system,
             max_tokens=opts.max_tokens,
-            temperature=temperature,
-            frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty,
-            top_p=top_p,
-            top_k=top_k,
+            temperature=opts.temperature,
+            frequency_penalty=opts.frequency_penalty,
+            presence_penalty=opts.presence_penalty,
+            top_p=opts.top_p,
+            min_p=opts.min_p,
+            top_k=opts.top_k,
             timeout=timeout,
             stream=True,
             logit_bias=logit_bias,
@@ -119,7 +111,7 @@ def generate(text, return_completion=False):
         completion_text = ''
         is_function_call = False
         function_args = {}
-        print("\n>ChatGPT: ", end='')
+        print("\n>AI: ", end='')
         for chunk in completion:
             event_text = ''
             chunk_message = chunk['choices'][0]['delta']  # extract the message
@@ -141,8 +133,8 @@ def generate(text, return_completion=False):
         funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
         # result = completion.choices[0].message.content
         result = completion_text
-        opts.message_array.append({"role": "assistant", "content": result})
-        # print(f"\n>ChatGPT: {result}")
+        funcs.append_bot_message(funcs.inverse_title_case(result))
+        # print(f"\n>AI: {result}")
         opts.generating = False
         return result
     except openai.APIError as e:
@@ -169,37 +161,41 @@ def generate(text, return_completion=False):
             return None
 
 
-def get_completion(text):
-    """ Sends text to OpenAI, gets the response, and returns the raw completion object """
-    while len(opts.message_array) > opts.max_conv_length:  # Trim down chat buffer if it gets too long
-        opts.message_array.pop(0)
-    # Add user's message to the chat buffer
-    opts.message_array.append({"role": "user", "content": text})
-    # Init system prompt with date and add it persistently to top of chat buffer
-    system_prompt_object = generate_system_prompt_object()
-    message_plus_system = system_prompt_object + example_messages + opts.message_array
-    # err = None
-    gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613" if opts.gpt == "GPT-4" else "custom"
-    try:
-        # vrc.chatbox('📡 Sending to OpenAI...')
-        # start_time = time.perf_counter()
-        return openai.ChatCompletion.create(
-            model=gpt_snapshot,
-            messages=message_plus_system,
-            max_tokens=opts.max_tokens,
-            temperature=temperature,
-            frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty,
-            top_p=top_p,
-            top_k=top_k,
-            timeout=timeout,
-            stream=True,
-            logit_bias=logit_bias
-            )
-    except Exception as e:
-        # err = e
-        print(f"!!Exception: {e}")
-        return None
+# def get_completion(text):
+#     """ Sends text to OpenAI, gets the response, and returns the raw completion object """
+#     while len(opts.message_array) > opts.max_conv_length:  # Trim down chat buffer if it gets too long
+#         opts.message_array.pop(0)
+#     # Add user's message to the chat buffer
+#     funcs.append_user_message(text)
+#     # Init system prompt with date and add it persistently to top of chat buffer
+#     system_prompt_object = generate_system_prompt_object()
+#     message_plus_system = system_prompt_object 
+#     if not any(msg in opts.message_array[:len(opts.example_messages)] for msg in opts.example_messages):
+#         message_plus_system += opts.example_messages # checks if any of the example messages are already in the message array
+#     message_plus_system += opts.message_array
+#     # err = None
+#     gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613" if opts.gpt == "GPT-4" else "custom"
+#     try:
+#         # vrc.chatbox('📡 Sending to OpenAI...')
+#         # start_time = time.perf_counter()
+#         return openai.ChatCompletion.create(
+#             model=gpt_snapshot,
+#             messages=message_plus_system,
+#             max_tokens=opts.max_tokens,
+#             temperature=opts.temperature,
+#             frequency_penalty=opts.frequency_penalty,
+#             presence_penalty=opts.presence_penalty,
+#             top_p=opts.top_p,
+#             min_p=opts.min_p,
+#             top_k=opts.top_k,
+#             timeout=timeout,
+#             stream=True,
+#             logit_bias=logit_bias
+#             )
+#     except Exception as e:
+#         # err = e
+#         print(f"!!Exception: {e}")
+#         return None
 
 
 def call_function(function_args):
@@ -234,7 +230,10 @@ def call_function(function_args):
 
     # Init system prompt with date and add it persistently to top of chat buffer
     system_prompt_object = generate_system_prompt_object()
-    message_plus_system = system_prompt_object + opts.message_array
+    message_plus_system = system_prompt_object 
+    if not any(msg in opts.message_array[:len(opts.example_messages)] for msg in opts.example_messages):
+        message_plus_system += opts.example_messages # checks if any of the example messages are already in the message array
+    message_plus_system += opts.message_array
     # err = None
     gpt_snapshot = "gpt-3.5-turbo-0613" if opts.gpt == "GPT-3" else "gpt-4-0613" if opts.gpt == "GPT-4" else "custom" 
     try:
@@ -242,14 +241,14 @@ def call_function(function_args):
             model=gpt_snapshot,
             messages=message_plus_system,
             max_tokens=opts.max_tokens,
-            temperature=temperature,
-            frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty,
+            temperature=opts.temperature,
+            frequency_penalty=opts.frequency_penalty,
+            presence_penalty=opts.presence_penalty,
             timeout=timeout,
             logit_bias=logit_bias
             )
         result = completion["choices"][0]["message"]["content"]
-        opts.message_array.append({"role": "assistant", "content": result})
+        funcs.append_bot_message(funcs.inverse_title_case(result))
         print(result)
         return result
     except Exception as e:
@@ -260,16 +259,29 @@ def call_function(function_args):
 
 def generate_system_prompt_object():
     # create object with system prompt and other realtime info
-    content = "\n"
-    content += f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M:%S %p")} Eastern Standard Time.'
+
+    system_prompt = opts.system_prompt.format(bot_name=opts.bot_name, bot_personality=opts.bot_personality)
+    
+    content = f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M %p")}.'
     if opts.gpt != 'custom':
         content += f' You are using {opts.gpt} from OpenAI.'
     if (funcs.log_parser.running):
-        content += "\nHere is some information about what's happening in the current VRChat instance:"
-        content += f'\nWorld Name: {funcs.log_parser.world_name}'
-        content += f'\nInstance ID: {funcs.log_parser.instance_id}'
-        content += f'\nInstance Privacy: {funcs.log_parser.instance_privacy}'
-    sp = [{"role": "system", "content":
-           opts.system_prompt
+        content += " In VRChat, "
+        content += f'The world {opts.bot_name} is in is named \"{funcs.log_parser.world_name}\"'
+        content += f', Instance ID:{funcs.log_parser.instance_id}'
+        content += f', and its privacy is {funcs.log_parser.instance_privacy}.'
+        
+        player_list = funcs.get_player_list()
+        player_count = funcs.get_player_count()
+        if player_list != None and player_count != None:
+            content += f' There are {player_count} players with you in the world: '
+            player_list = ', '.join([f'"{item}"' for item in player_list]) # formats it to look like a python list, might inference better idk
+            player_list = f"[{player_list}]"
+            content += player_list
+    
+    content += "\n\n"
+
+    system_prompt = [{"role": "system", "content":
+           system_prompt
            + content}]
-    return sp
+    return system_prompt
