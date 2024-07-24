@@ -57,6 +57,72 @@ Frame 6: Direct Text Input
 app = None
 icon = os.getcwd() + "\\icon.ico"
 
+
+class Popup(customtkinter.CTkToplevel):
+    def __init__(self, master, window_title, window_text, button_text, *args, **kwargs):
+        super().__init__(master)
+        self.geometry("300x150")
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure((0,2), weight=0)
+        self.title(window_title)
+        self.iconbitmap(icon)
+
+        self.titlebar = customtkinter.CTkLabel( self, text=window_title, fg_color="gray30", corner_radius=6 )
+        self.titlebar.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="ew")
+
+        self.label = customtkinter.CTkLabel(self, text=window_text, fg_color="gray10", corner_radius=6, wraplength=260)
+        self.label.grid(row=1, column=0, sticky='nsew', padx=20, pady=5)
+
+        self.button = customtkinter.CTkButton(self, text=button_text, command=self.destroy)
+        self.button.grid(row=2, column=0, sticky="s", padx=10, pady=(2,10))
+
+
+class Popup_YesNo(customtkinter.CTkToplevel):
+    def __init__(self, master, window_title, window_text, button_confirm_text, button_deny_text, button_confirm_command=None, button_deny_command=None):
+        super().__init__(None)
+        w = 400
+        h = 150
+        #spawn the window centered within the parent window
+        x = master.winfo_x() + (master.winfo_width() // 2) - (w // 2)
+        y = master.winfo_y() + (master.winfo_height() // 2) - (h // 2)
+        self.grid_columnconfigure((0,1), weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure((0,2), weight=0)
+        self.title(window_title)
+
+        self.button_confirm_command = button_confirm_command
+        self.button_deny_command = button_deny_command
+
+        self.titlebar = customtkinter.CTkLabel( self, text=window_title, fg_color="gray30", corner_radius=6 )
+        self.titlebar.grid(row=0, column=0, columnspan=3, sticky="ew", padx=10, pady=10)
+
+        self.label = customtkinter.CTkLabel(self, text=window_text, fg_color="gray10", corner_radius=6, wraplength=360)
+        self.label.grid(row=1, column=0, columnspan=3, sticky='nsew', padx=20, pady=5)
+
+        self.button = customtkinter.CTkButton(self, text=button_deny_text, fg_color="#A52F62", hover_color="#82254d", command=self._cancel_button_pressed)
+        self.button.grid(row=2, column=0, sticky="sew", padx=(10,5), pady=(2,10))
+
+        self.button = customtkinter.CTkButton(self, text=button_confirm_text, command=self._ok_button_pressed)
+        self.button.grid(row=2, column=1, sticky="sew", padx=(5,10), pady=(2,10))
+
+        self.protocol("WM_DELETE_WINDOW",  self.on_close)
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+    def _ok_button_pressed(self):
+        if self.button_confirm_command:
+            self.button_confirm_command()
+        self.destroy()
+
+    def _cancel_button_pressed(self):
+        if self.button_deny_command:
+            self.button_deny_command()
+        self.destroy()
+    
+    def on_close(self):
+        self._cancel_button_pressed()
+
+
 class ProgramOptionsFrame(customtkinter.CTkFrame):
     def __init__(self, master, title):
         super().__init__(master)
@@ -201,6 +267,10 @@ class AIStuffFrame(customtkinter.CTkFrame):
         self.button_spawn_chat_box.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
         row += 1
 
+        self.button_save = customtkinter.CTkButton(self, text="Save Config", command=self._save_config)
+        self.button_save.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=10)
+        row += 1
+
         self.textbox_system_prompt.bind("<FocusOut>", self._set_variables)
         self.textbox_system_prompt.bind("<Return>", self._set_variables)
 
@@ -218,6 +288,17 @@ class AIStuffFrame(customtkinter.CTkFrame):
             case "custom": value = 2
             case _:        value = 0
         self.gpt_radio_var.set(value)
+
+    def _save_config(self):
+        popup = Popup_YesNo(self, window_title="Save Config", window_text="Are you sure you want to save the current configuration?", button_confirm_text="Save", button_deny_text="Cancel", button_confirm_command=self._save_config_command)
+
+    def _save_config_command(self):
+        try:
+            opts.save_config()
+            popup = Popup(self, window_title="Config Saved", window_text="The configuration has been saved successfully.", button_text="OK")
+        except Exception as e:
+            print(f"Error saving config: {e}")
+            popup = Popup(self, window_title="Error Saving Config", window_text="There was an error saving the configuration.", button_text="OK") 
 
     def _reset_chat_buffer(self):
         opts.message_array = []
@@ -883,26 +964,6 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
         self.textfield_text_entry.configure(state="normal")
         self.button_send.configure(text="Send", state="normal")
         self.refresh_messages()
-
-
-class Popup(customtkinter.CTkToplevel):
-    def __init__(self, master, window_title, window_text, button_text, *args, **kwargs):
-        super().__init__(master)
-        self.geometry("300x150")
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
-        self.grid_rowconfigure((0,2), weight=0)
-        self.title(window_title)
-        self.iconbitmap(icon)
-
-        self.titlebar = customtkinter.CTkLabel( self, text=window_title, fg_color="gray30", corner_radius=6 )
-        self.titlebar.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="ew")
-
-        self.label = customtkinter.CTkLabel(self, text=window_text, fg_color="gray10", corner_radius=6, wraplength=260)
-        self.label.grid(row=1, column=0, sticky='nsew', padx=20, pady=5)
-
-        self.button = customtkinter.CTkButton(self, text=button_text, command=self.destroy)
-        self.button.grid(row=2, column=0, sticky="s", padx=10, pady=(2,10))
 
 
 class IntSpinbox(customtkinter.CTkFrame):
