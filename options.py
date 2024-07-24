@@ -146,61 +146,6 @@ if not os.path.exists(config_file):
 
 def save_config():
     with open(config_file, 'w', encoding='utf8') as config:
-        # config_data = {
-        #     "whisper_prompt": whisper_prompt,
-        #     "whisper_model": whisper_model,
-        #     "whisper_task": whisper_task,
-        #     "whisper_device": whisper_device,
-        #     "whisper_compute_type": whisper_compute_type,
-
-        #     "vrc_ip": vrc_ip,
-        #     "vrc_osc_inport": vrc_osc_inport,
-        #     "vrc_osc_outport": vrc_osc_outport,
-
-        #     "verbosity": verbosity,
-        #     "chatbox": chatbox,
-        #     "parrot_mode": parrot_mode,
-        #     "soundFeedback": soundFeedback,
-        #     "audio_trigger_enabled": audio_trigger_enabled,
-        #     "key_trigger_key": str(key_trigger_key),
-        #     "key_press_window": key_press_window,
-
-        #     "in_dev_name": in_dev_name,
-        #     "out_dev_name": out_dev_name,
-
-        #     "gpt": gpt,
-        #     "custom_api_url": custom_api_url,
-        #     "max_tokens": max_tokens,
-        #     "max_conv_length": max_conv_length,
-        #     "temperature": temperature,
-        #     "frequency_penalty": frequency_penalty,
-        #     "presence_penalty": presence_penalty,
-        #     "top_p": top_p,
-        #     "min_p": min_p,
-        #     "top_k": top_k,
-
-        #     "tts_engine": tts_engine,
-        #     "tts_engine_name": tts_engine_name,
-        #     "tts_engine_selections": tts_engine_selections,
-        #     "windows_tts_voice_id": windows_tts_voice_id,
-        #     "eleven_voice_id": eleven_voice_id,
-        #     "tiktok_voice_id": tiktok_voice_id,
-        #     "gtrans_language_code": gtrans_language_code,
-        #     "gcloud_language_code": gcloud_language_code,
-        #     "gcloud_tts_type": gcloud_tts_type,
-        #     "gcloud_letter_id": gcloud_letter_id,
-        #     "gcloud_voice_name": gcloud_voice_name,
-
-        #     "THRESHOLD": THRESHOLD,
-        #     "MAX_RECORDING_TIME": MAX_RECORDING_TIME,
-        #     "SILENCE_TIMEOUT": SILENCE_TIMEOUT,
-        #     "OUTPUT_FILENAME": OUTPUT_FILENAME,
-
-        #     "bot_name": bot_name,
-        #     "bot_personality": bot_personality,
-        #     "system_prompt": system_prompt,
-        #     "example_messages": example_messages
-        # }
         config_data = {k: v for k,v in globals().items() if k in safe_keys}
         trigger_key = str(config_data["key_trigger_key"])
         trigger_key = trigger_key[trigger_key.find(".")+1:]
