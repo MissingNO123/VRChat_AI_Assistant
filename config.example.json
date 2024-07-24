@@ -26,7 +26,6 @@
   "top_p": 0.4,
   "min_p": 0.01,
   "top_k": 69,
-  "tts_engine": null,
   "tts_engine_name": "Google Translate",
   "windows_tts_voice_id": 0,
   "eleven_voice_id": "Phillip",
