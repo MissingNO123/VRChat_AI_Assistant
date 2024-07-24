@@ -103,6 +103,7 @@ class FasterWhisperASR(ASRBase):
     """
 
     sep = ""
+    whisper_compute_type = "int8_float16"
 
     def load_model(self, modelsize=None, cache_dir=None, model_dir=None):
         from faster_whisper import WhisperModel
@@ -121,7 +122,7 @@ class FasterWhisperASR(ASRBase):
 
         # or run on GPU with INT8
         # tested: the transcripts were different, probably worse than with FP16, and it was slightly (appx 20%) slower
-        model = WhisperModel(model_size_or_path, device="cuda", compute_type="int8_float16")
+        model = WhisperModel(model_size_or_path, device="cuda", compute_type=self.whisper_compute_type)
 
         # or run on CPU with INT8
         # tested: works, but slow, appx 10-times than cuda FP16

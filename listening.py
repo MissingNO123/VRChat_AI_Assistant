@@ -7,6 +7,7 @@ import time
 from queue import Queue
 
 from whisper_online import FasterWhisperASR, OnlineASRProcessor
+FasterWhisperASR.whisper_compute_type = opts.whisper_compute_type
 
 import options as opts
 import functions as funcs
