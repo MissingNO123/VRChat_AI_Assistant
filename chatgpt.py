@@ -33,7 +33,7 @@ providers = {
     "order": [
         "Fireworks", 
         "OctoAI", 
-        "NovitaAI", 
+        "Novita", 
         "Together"
     ],
     "allow_fallbacks": False    
