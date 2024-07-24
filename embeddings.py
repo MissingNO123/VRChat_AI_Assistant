@@ -7,6 +7,8 @@ import os
 import json
 from typing import List, Dict
 
+import options as opts
+
 print("hi mom")
 matryoshka_dim = 512
 top_k = 6
@@ -15,7 +17,7 @@ model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=
 memory =  []
 history = []
 
-def search_memory(query, similarity_threshold=0.7) -> List[str]:
+def search_memory(query, similarity_threshold=opts.similarity_threshold) -> List[str]:
     query_embedding = _get_embedding(query)
     results = _get_similarity(query_embedding, memory)
     filtered_results = []
@@ -47,7 +49,8 @@ def load_memory() -> None:
         try: 
             memory_json = json.load(memory_data)
             items = memory_json.get("items", [])
-            memory.extend(items)
+            for item in items:
+                add_to_memory(item)
         except Exception as e:
             print(f"Error loading memory from file: {e}")
 

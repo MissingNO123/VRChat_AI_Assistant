@@ -43,6 +43,7 @@ presence_penalty = 0.5
 top_p = 0.4
 min_p = 0.01
 top_k = 69
+similarity_threshold = 0.5      # Threshold for semantic memory search
 
 # TTS options
 tts_engine = None
@@ -122,6 +123,7 @@ safe_keys = [
     "top_p",
     "min_p",
     "top_k",
+    "similarity_threshold",
 
     "tts_engine_name",
     "windows_tts_voice_id",

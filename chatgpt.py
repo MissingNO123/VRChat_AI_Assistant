@@ -5,6 +5,8 @@ from datetime import datetime
 import vrcutils as vrc
 import options as opts
 import functions as funcs
+import embeddings as emb
+emb.load_memory()
 
 logit_bias = {
 #   'As',        'as',       ' an',      'AI',          ' AI',        ' language',  ' model',     'model',           
@@ -21,6 +23,21 @@ logit_bias = {
 timeout = 20
 
 default_api_base = openai.api_base
+
+headers = {
+    "HTTP-Referer": "https://github.com/MissingNO123/VRChat_AI_Assistant/",
+    "X-Title": "VRChat AI Assistant"
+}
+
+providers = {
+    "order": [
+        "Fireworks", 
+        "OctoAI", 
+        "NovitaAI", 
+        "Together"
+    ],
+    "allow_fallbacks": False    
+}
 
 
 def update_base_url():
@@ -102,9 +119,11 @@ def generate(text="", return_completion=False):
             top_k=opts.top_k,
             timeout=timeout,
             stream=True,
+            headers=headers,
+            provider=providers,
             # logit_bias=logit_bias,  # doesn't work for LLaMA
             # functions=functions,    # eats tokens
-            function_call="auto"
+            # function_call="auto"
             )
         if return_completion:
             return completion
@@ -260,9 +279,14 @@ def call_function(function_args):
 def generate_system_prompt_object():
     # create object with system prompt and other realtime info
 
+    semantic_results = emb.search_memory(opts.message_array[-1]["content"])
+    semantic_results = " ".join(semantic_results)
+
     system_prompt = opts.system_prompt.format(bot_name=opts.bot_name, bot_personality=opts.bot_personality)
     
-    content = f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M %p")}.'
+    content = ""
+    content += f'Extra info: {semantic_results}'
+    content += f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M %p")}.'
     if opts.gpt != 'custom':
         content += f' You are using {opts.gpt} from OpenAI.'
     if (funcs.log_parser.running):
@@ -285,3 +309,7 @@ def generate_system_prompt_object():
            system_prompt
            + content}]
     return system_prompt
+
+if __name__ == "__main__":
+    print("You ran the wrong file")
+    quit()
