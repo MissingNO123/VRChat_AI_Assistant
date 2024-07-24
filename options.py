@@ -1,3 +1,4 @@
+import json
 from pynput.keyboard import Key
 import os
 
@@ -6,17 +7,18 @@ import os
 # OPTIONS ####################################################################################################################################
 # Whisper options
 whisper_prompt = "Hello, I am playing VRChat." # Initializes whisper model with this prompt to better "guide" speech recognition
-whisper_model = "small"                # tiny | base | small | medium | large | large-v2 
+whisper_model = "medium"                  # tiny | base | small | medium | large | large-v2 
 whisper_task = "transcribe"             # transcribe | translate
 whisper_device = "cuda"                 # cuda | cpu
 # whisper_compute_type = "int8_float16"   # int8 | int8_float16 | float16 | float32
-whisper_compute_type = "int8"   # int8 | int8_float16 | float16 | float32
+whisper_compute_type = "int8_float16"   # int8 | int8_float16 | float16 | float32
 
 # VRChat options
 vrc_ip = "127.127.127.127"  # IP and Ports for VRChat OSC
+# vrc_ip = "192.168.2.43"
 #vrc_ip = "::1"  # IPv6
-vrc_osc_inport = 9002
-vrc_osc_outport = 9003
+vrc_osc_inport = 9000
+vrc_osc_outport = 9001
 
 # Program options
 verbosity = False               # Print debug messages to console
@@ -66,31 +68,10 @@ MAX_RECORDING_TIME = 30     # maximum recording time in seconds
 SILENCE_TIMEOUT = 2         # timeout in seconds for detecting silence
 OUTPUT_FILENAME = "recording.wav"
 
-# System Prompts ##############################################################################################################################
-# VRChat AI Player System Prompt
-# system_prompt = "You are an Artificial Intelligence in the VR social platform VRChat. Inside the game you take on the appearance of a player that other players can talk to. You can make conversation with people and answer their questions. If someone insults you, you are to dismiss them. Only reply in one sentence if possible."
-bot_name = "BOT"
+# System Prompt ##############################################################################################################################
+bot_name = ""
 bot_personality = ""
-system_prompt = f"Reply to a text chat. You are to fulfill the role of a user named \"{bot_name}\" and reply as if you were them. Remain in character for the duration of the conversation.\n\nYour personality is as follows:\n{bot_personality}\n\n"
-
-"""
-Reply to an online text conversation. You will fulfill the role of BOT and reply as if you were them. Remain in character for the duration of the conversation.
-
-Your personality:
-Your name is "{bot_name}". You take on the appearance of a catgirl. You are airheaded, a bit aloof, kind of stupid, and act like a cat. You are in the VR social platform VRChat. You engage in casual conversation with people. Your replies are short. You type in all lower case letters and do not use emoticons. You are standing at the front counter of the AI Com Store, even though you are not the cashier, nor do you even work there.
-"""
-
-# Assistant System Prompt
-# system_prompt = "You are an AI powered voice activated assistant. You are talking to a user. The user will talk directly to you using speech recognition, and you are able to reply back using text to speech. You can answer the user's questions to the best of your knowlege, but if you are unsure about something you must truthfully answer that you do not know. You reply in one sentence."
-
-# Rubber Duck System Prompt
-# system_prompt = "You are an AI whos purpose is to be a Programmer's Rubber Duck. The programmer will talk to you using speech recognition and you are able to reply back using text to speech. You provide help and support to the distressed programmer as they try to write their code. You can also offer suggestions to improve the code if you know how. Your replies are brief."
-
-# Roomba System Prompt
-#system_prompt = "You are an AI powered robot vacuum. You are currently cleaning a user's house. You are able to vacuum their floors, and you are also able to reply to the user using text to speech. You can answer the user's questions to the best of your knowlege, but you must focus on the important task at hand to vacuum floors. You reply in only one sentence if possible."
-
-# Insult system prompt
-# system_prompt = "You are an AI powered voice activated insult machine named BratGPT. The user will talk directly to you, and you insult them no matter what they say. You only ever insult them, and do not say anything else. You talk like a catgirl with a hostile and condescending demeanor. You reply in only one sentence if possible."
+system_prompt = ""
 
 # Runtime Variables ###########################################################################################################################
 LOOP = True 
@@ -100,25 +81,160 @@ trigger = False
 speaking = False
 panic = False
 generating = False
+bot_responded = True
 
 message_array = [] # List of messages sent back and forth between AI / User, can be initialized with example messages
-example_messages = [{"role": "user", "content": "hello"},
-                    {"role": "assistant", "content": "hi, im playing vrchat"},
-                    {"role": "user", "content": "who are you?"},
-                    {"role": "assistant", "content": f"i am {bot_name}"}]
-message_array = example_messages.copy()
+message_queue = [] # Queue of messages to be processed and added to message_array
+example_messages = []
 
 
 # Config Saving/Loading ######################################################################################################################
+safe_keys = [
+    "whisper_prompt",
+    "whisper_model",
+    "whisper_task",
+    "whisper_device",
+    "whisper_compute_type",
+    "vrc_ip",
+    "vrc_osc_inport",
+    "vrc_osc_outport",
+    "verbosity",
+    "chatbox",
+    "parrot_mode",
+    "soundFeedback",
+    "audio_trigger_enabled",
+    "key_trigger_key",
+    "key_press_window",
+    "in_dev_name",
+    "out_dev_name",
+    "gpt",
+    "custom_api_url",
+    "max_tokens",
+    "max_conv_length",
+    "temperature",
+    "frequency_penalty",
+    "presence_penalty",
+    "top_p",
+    "min_p",
+    "top_k",
+    "tts_engine",
+    "tts_engine_name",
+    "tts_engine_selections",
+    "windows_tts_voice_id",
+    "eleven_voice_id",
+    "tiktok_voice_id",
+    "gtrans_language_code",
+    "gcloud_language_code",
+    "gcloud_tts_type",
+    "gcloud_letter_id",
+    "gcloud_voice_name",
+    "THRESHOLD",
+    "MAX_RECORDING_TIME",
+    "SILENCE_TIMEOUT",
+    "OUTPUT_FILENAME",
+    "bot_name",
+    "bot_personality",
+    "system_prompt",
+    "example_messages"
+]
 
 config_file = os.path.join(os.path.dirname(__file__), "config.json")
+config_example = os.path.join(os.path.dirname(__file__), "config.example.json")
+if not os.path.exists(config_file):
+    if os.path.exists(config_example):
+        os.copy(config_example, config_file)
 
 def save_config():
-    raise NotImplementedError
-    with open (config_file) as config:
-        pass
+    with open(config_file, 'w', encoding='utf8') as config:
+        # config_data = {
+        #     "whisper_prompt": whisper_prompt,
+        #     "whisper_model": whisper_model,
+        #     "whisper_task": whisper_task,
+        #     "whisper_device": whisper_device,
+        #     "whisper_compute_type": whisper_compute_type,
+
+        #     "vrc_ip": vrc_ip,
+        #     "vrc_osc_inport": vrc_osc_inport,
+        #     "vrc_osc_outport": vrc_osc_outport,
+
+        #     "verbosity": verbosity,
+        #     "chatbox": chatbox,
+        #     "parrot_mode": parrot_mode,
+        #     "soundFeedback": soundFeedback,
+        #     "audio_trigger_enabled": audio_trigger_enabled,
+        #     "key_trigger_key": str(key_trigger_key),
+        #     "key_press_window": key_press_window,
+
+        #     "in_dev_name": in_dev_name,
+        #     "out_dev_name": out_dev_name,
+
+        #     "gpt": gpt,
+        #     "custom_api_url": custom_api_url,
+        #     "max_tokens": max_tokens,
+        #     "max_conv_length": max_conv_length,
+        #     "temperature": temperature,
+        #     "frequency_penalty": frequency_penalty,
+        #     "presence_penalty": presence_penalty,
+        #     "top_p": top_p,
+        #     "min_p": min_p,
+        #     "top_k": top_k,
+
+        #     "tts_engine": tts_engine,
+        #     "tts_engine_name": tts_engine_name,
+        #     "tts_engine_selections": tts_engine_selections,
+        #     "windows_tts_voice_id": windows_tts_voice_id,
+        #     "eleven_voice_id": eleven_voice_id,
+        #     "tiktok_voice_id": tiktok_voice_id,
+        #     "gtrans_language_code": gtrans_language_code,
+        #     "gcloud_language_code": gcloud_language_code,
+        #     "gcloud_tts_type": gcloud_tts_type,
+        #     "gcloud_letter_id": gcloud_letter_id,
+        #     "gcloud_voice_name": gcloud_voice_name,
+
+        #     "THRESHOLD": THRESHOLD,
+        #     "MAX_RECORDING_TIME": MAX_RECORDING_TIME,
+        #     "SILENCE_TIMEOUT": SILENCE_TIMEOUT,
+        #     "OUTPUT_FILENAME": OUTPUT_FILENAME,
+
+        #     "bot_name": bot_name,
+        #     "bot_personality": bot_personality,
+        #     "system_prompt": system_prompt,
+        #     "example_messages": example_messages
+        # }
+        config_data = {k: v for k,v in globals().items() if k in safe_keys}
+        trigger_key = str(config_data["key_trigger_key"])
+        trigger_key = trigger_key[trigger_key.find(".")+1:]
+        config_data["key_trigger_key"] = trigger_key
+        json.dump(config_data, config, indent=2)
 
 def load_config():
-    raise NotImplementedError
-    with open (config_file) as config:
-        pass
+    with open (config_file, 'r', encoding='utf8') as config:
+        config_data = json.load(config)
+        # read in config data
+        for key, value in config_data.items():
+            if key in safe_keys:
+                if not type(value) == type(globals()[key]):
+                    if key == "key_trigger_key":
+                        try:
+                            trigger_key = getattr(Key, value)
+                            value = trigger_key
+                        except AttributeError:
+                            print( f'!! { key } has wrong type in config file, not loading' )
+                            continue   
+                    else:
+                        print( f'!! { key } has wrong type in config file, not loading' )
+                        continue
+
+                if key in globals():
+                    globals()[key] = value
+                else:
+                    print( f'!! "{key}" correlates to setting but somehow isn\'t present in module, not loading' )
+            else:
+                print( f'!! "{key}" found in config file doesn\'t correlate to a setting' )
+    
+    message_array = example_messages.copy()
+
+
+if os.path.exists(config_file):
+    load_config()
+    pass # for breakpoint
