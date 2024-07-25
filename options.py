@@ -20,11 +20,11 @@ vrc_osc_inport = 9000
 vrc_osc_outport = 9001
 
 # Program options
-verbosity = False               # Print debug messages to console
-chatbox = True                  # Send messages to VRChat chatbox
-parrot_mode = False             # Echo back user's messages
-soundFeedback = True            # Play sound feedback when recording/stopped/misrecognized
-audio_trigger_enabled = False   # Trigger voice recording on volume threshold
+verbosity: bool = False               # Print debug messages to console
+chatbox: bool = True                  # Send messages to VRChat chatbox
+parrot_mode: bool = False             # Echo back user's messages
+sound_feedback: bool = True            # Play sound feedback when recording/stopped/misrecognized
+audio_trigger_enabled: bool = False   # Trigger voice recording on volume threshold
 key_trigger_key = Key.ctrl_r    # What key to double press to trigger recording
 key_press_window = 0.400        # How fast should you double click the key to trigger voice recording
 
@@ -65,8 +65,8 @@ gcloud_voice_name = f"{gcloud_language_code}-{gcloud_tts_type}-{gcloud_letter_id
 
 # Speech recognition options
 THRESHOLD = 1024            # adjust this to set the minimum volume threshold to start/stop recording
-MAX_RECORDING_TIME = 30     # maximum recording time in seconds
-SILENCE_TIMEOUT = 2         # timeout in seconds for detecting silence
+MAX_RECORDING_TIME = 30.0     # maximum recording time in seconds
+SILENCE_TIMEOUT = 2.0         # timeout in seconds for detecting silence
 OUTPUT_FILENAME = "recording.wav"
 
 # System Prompt ##############################################################################################################################
