@@ -18,7 +18,7 @@ vb_in = None
 pyAudio = None
 
 vrc_request_timeout = time.time()
-vrc_player_count = ""
+vrc_player_count = "0"
 
 empty_audio = BytesIO(b"\x52\x49\x46\x46\x52\x49\x00\x00\x57\x41\x56\x45\x66\x6d\x74\x20\x10\x00\x00\x00\x01\x00\x01\x00\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00\x64\x61\x74\x61\x00\x00\x00\x00")
 
@@ -305,12 +305,14 @@ class LogWatcher:
         while opts.LOOP and self.running:
             self.vrc_is_running = self._check_vrchat_running()
             if self.vrc_is_running:
-                    if self.log_file is None: 
-                        self.log_file = self._get_log_file(self.log_directory)
-                    if not self.log_watcher_thread.is_alive():
-                        self.log_watcher_thread = threading.Thread(target=self._watch_log_file)
-                        self.log_watcher_thread.start()
+                v_print("VRChat is running")
+                if self.log_file is None: 
+                    self.log_file = self._get_log_file(self.log_directory)
+                if not self.log_watcher_thread.is_alive():
+                    self.log_watcher_thread = threading.Thread(target=self._watch_log_file)
+                    self.log_watcher_thread.start()
             else:
+                v_print("VRChat is NOT running")
                 if self.log_watcher_thread.is_alive():
                     self.log_watcher_thread.join()
                     self.log_file = None
@@ -480,4 +482,4 @@ def get_vrchat_player_count():
         vrc_request_timeout = time.time() + 60
         return response.text
     else:
-        return None
+        return vrc_player_count
