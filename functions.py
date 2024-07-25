@@ -22,9 +22,15 @@ vrc_player_count = ""
 
 empty_audio = BytesIO(b"\x52\x49\x46\x46\x52\x49\x00\x00\x57\x41\x56\x45\x66\x6d\x74\x20\x10\x00\x00\x00\x01\x00\x01\x00\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00\x64\x61\x74\x61\x00\x00\x00\x00")
 
+speech_on = "Speech On.wav"
+speech_off = "Speech Sleep.wav"
+speech_mis = "Speech Misrecognition.wav"
+
+
 def v_print(text):
     if opts.verbosity:
         print(text)
+
 
 def queue_message(message):
     """ Queues a message to be spoken by the bot """
@@ -33,6 +39,7 @@ def queue_message(message):
         return
     opts.message_queue.append(message)
 
+
 def append_user_message(message):
     """ Appends user message to the conversation buffer """
     if len(message) == 0:
@@ -40,12 +47,14 @@ def append_user_message(message):
         return
     opts.message_array.append({"role": "user", "content": message})
 
+
 def append_bot_message(message):
     """ Appends bot message to the conversation buffer """
     if len(message) == 0:
         print("!!Trying to append empty message to array")
         return
     opts.message_array.append({"role": "assistant", "content": message})
+
 
 def init_audio():
     global vb_in

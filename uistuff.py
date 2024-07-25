@@ -10,6 +10,7 @@ import options as opts
 import functions as funcs
 import vrcutils as vrc
 import chatgpt
+import listening as ears
 
 
 """
@@ -148,7 +149,7 @@ class ProgramOptionsFrame(customtkinter.CTkFrame):
             opts.verbosity,
             opts.chatbox,
             opts.parrot_mode,
-            opts.soundFeedback,
+            opts.sound_feedback,
             opts.audio_trigger_enabled
         ]
 
@@ -167,18 +168,18 @@ class ProgramOptionsFrame(customtkinter.CTkFrame):
             self.checkboxes.append(checkbox)
 
     def _update_variables(self):
-        opts.verbosity = self.checkboxes[0].get()
-        opts.chatbox = self.checkboxes[1].get()
-        opts.parrot_mode = self.checkboxes[2].get()
-        opts.soundFeedback = self.checkboxes[3].get()
-        opts.audio_trigger_enabled = self.checkboxes[4].get()
+        opts.verbosity = bool(self.checkboxes[0].get())
+        opts.chatbox = bool(self.checkboxes[1].get())
+        opts.parrot_mode = bool(self.checkboxes[2].get())
+        opts.sound_feedback = bool(self.checkboxes[3].get())
+        opts.audio_trigger_enabled = bool(self.checkboxes[4].get())
 
     def update_checkboxes(self):
         # TODO: This is so ugly. Oh my god. I need to find a better way to do this.
         if self.checkboxes[0].get() is not opts.verbosity: self.checkboxes[0].toggle()
         if self.checkboxes[1].get() is not opts.chatbox: self.checkboxes[1].toggle()
         if self.checkboxes[2].get() is not opts.parrot_mode: self.checkboxes[2].toggle()
-        if self.checkboxes[3].get() is not opts.soundFeedback: self.checkboxes[3].toggle()
+        if self.checkboxes[3].get() is not opts.sound_feedback: self.checkboxes[3].toggle()
         if self.checkboxes[4].get() is not opts.audio_trigger_enabled: self.checkboxes[3].toggle()
 
 
@@ -425,6 +426,7 @@ class AudioStuffFrame(customtkinter.CTkFrame):
     def _update_audio_page(self, event=None):
         try:
             opts.THRESHOLD = int(self.rms_threshold.get())
+            ears.recorder.energy_threshold = opts.THRESHOLD
             opts.SILENCE_TIMEOUT = float(self.silence_timeout.get())
             opts.MAX_RECORDING_TIME = float(self.max_recording_time.get())
             opts.in_dev_name = self.input_device_name.get()

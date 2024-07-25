@@ -62,10 +62,6 @@ opts.tts_engine = ttsutils.GoogleTranslateTTS()
 # Constants
 pyAudio = pyaudio.PyAudio()
 
-speech_on = "Speech On.wav"
-speech_off = "Speech Sleep.wav"
-speech_mis = "Speech Misrecognition.wav"
-
 ip = "127.0.0.1"  # IP and Ports for VRChat OSC
 inPort = 9000
 outPort = 9001
@@ -84,8 +80,8 @@ def v_print(text):
 
 def save_recorded_frames(frames):
     """ Saves recorded frames to a .wav file and sends it to whisper to transcribe it """
-    if opts.soundFeedback:
-        funcs.play_sound_threaded(speech_off)
+    if opts.sound_feedback:
+        funcs.play_sound_threaded(funcs.speech_off)
     recording = BytesIO()
     wf = wave.open(recording, 'wb')
     wf.setnchannels(2)
@@ -169,7 +165,7 @@ def openai_whisper_transcribe(recording):
     # if not speech, dont send to cgpt
     if result.no_speech_prob > 0.5:
         vrc.chatbox('⚠ [unintelligible]')
-        if opts.soundFeedback: funcs.play_sound_threaded(speech_mis)
+        if opts.sound_feedback: funcs.play_sound_threaded(funcs.speech_mis)
         funcs.v_print(f"U: {result.no_speech_prob*100:.1f}%")
         # tts('I didn\'t understand that!', 'en')
         funcs.play_sound('./prebaked_tts/Ididntunderstandthat.wav')
@@ -206,16 +202,16 @@ def faster_whisper_transcribe(recording):
         # if too short, skip
         if info.duration <= (opts.SILENCE_TIMEOUT + 0.1):
             vrc.chatbox('⚠ [nothing heard]')
-            if opts.soundFeedback:
-                funcs.play_sound_threaded(speech_mis)
+            if opts.sound_feedback:
+                funcs.play_sound_threaded(funcs.speech_mis)
             vrc.clear_prop_params()
             return None
 
         # if not recognized as speech, dont bother processing anything  
         if info.language_probability < 0.6:
             vrc.chatbox('⚠ [unintelligible]')
-            if opts.soundFeedback:
-                funcs.play_sound_threaded(speech_mis)
+            if opts.sound_feedback:
+                funcs.play_sound_threaded(funcs.speech_mis)
                 funcs.play_sound('./prebaked_tts/Ididntunderstandthat.wav')
             vrc.clear_prop_params()
             end_time = time.perf_counter()
@@ -329,13 +325,13 @@ def handle_command(command):
                 f'./prebaked_tts/Chatboxesarenow{"on" if opts.chatbox else "off"}.wav')
 
         case 'sound':
-            opts.soundFeedback = not opts.soundFeedback
+            opts.sound_feedback = not opts.sound_feedback
             ui.app.program_bools_frame.update_checkboxes()
-            print(f'$ Sound feedback set to {opts.soundFeedback}')
-            vrc.chatbox(('🔊' if opts.soundFeedback else '🔈') +
-                        ' Sound feedback set to ' + ('on' if opts.soundFeedback else 'off'))
+            print(f'$ Sound feedback set to {opts.sound_feedback}')
+            vrc.chatbox(('🔊' if opts.sound_feedback else '🔈') +
+                        ' Sound feedback set to ' + ('on' if opts.sound_feedback else 'off'))
             funcs.play_sound(
-                f'./prebaked_tts/Soundfeedbackisnow{"on" if opts.soundFeedback else "off"}.wav')
+                f'./prebaked_tts/Soundfeedbackisnow{"on" if opts.sound_feedback else "off"}.wav')
 
         case 'audiotrigger':
             opts.audio_trigger_enabled = not opts.audio_trigger_enabled
@@ -516,8 +512,8 @@ def loop():
                 recording = True
                 # set timeout to now + SILENCE_TIMEOUT seconds
                 silence_timeout_timer = time.time() + opts.SILENCE_TIMEOUT
-                if opts.soundFeedback:
-                    funcs.play_sound_threaded(speech_on)
+                if opts.sound_feedback:
+                    funcs.play_sound_threaded(funcs.speech_on)
             elif recording:  # If already recording, continue appending frames
                 frames.append(data)
                 if rms < opts.THRESHOLD:
