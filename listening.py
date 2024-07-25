@@ -11,6 +11,7 @@ from whisper_online import FasterWhisperASR, OnlineASRProcessor
 
 import options as opts
 import functions as funcs
+import vrcutils as vrc
 
 FasterWhisperASR.whisper_compute_type = opts.whisper_compute_type
 
@@ -18,7 +19,7 @@ FasterWhisperASR.whisper_compute_type = opts.whisper_compute_type
 data_queue = Queue()
 recorder = sr.Recognizer()
 recorder.energy_threshold = opts.THRESHOLD
-# Dynamic energy compensation lowers the energy threshold to a point where the SpeechRecognizer never stops recording.
+# Dynamic energy compensation lowers the energy threshold to a point where the SpeechRecognizer never stops recording, so we disable it.
 recorder.dynamic_energy_threshold = False
 
 
@@ -32,6 +33,7 @@ def record_callback(_, audio:sr.AudioData) -> None:
         data_queue.put(data)
 
 
+# Main function for listening to the microphone and processing speech.
 def run():
     # The last time a recording was retrieved from the queue.
     phrase_time = None
@@ -62,12 +64,14 @@ def run():
     
     while True:
         try:
+            # If the audio trigger is disabled, we can't listen for audio.
             if not opts.audio_trigger_enabled:
                 phrase_complete = False
                 phrase_time = -1
                 data_queue.queue.clear()
                 time.sleep(0.5)
                 continue
+            # If we're generating or speaking, we shouldn't listen for audio.
             if opts.generating or opts.speaking:
                 phrase_complete = False
                 phrase_time = -1
@@ -75,12 +79,15 @@ def run():
                 time.sleep(0.5)
                 continue
             now = time.time()
-            # Pull raw recorded audio from the queue.
+            # Pull raw recorded audio from the queue if it's not empty.
             if not data_queue.empty():
                 if not opts.trigger:
                     opts.trigger = True
                     if opts.sound_feedback:
                         funcs.play_sound_threaded(funcs.speech_on)
+                    if opts.chatbox:
+                        vrc.chatbox("👂 Listening...")
+                    funcs.v_print("~Listening...")
                 phrase_complete = False
                 # If enough time has passed between recordings, consider the phrase complete.
                 # Clear the current working audio buffer to start over with the new data.
@@ -89,6 +96,7 @@ def run():
                     opts.trigger = False
                     if opts.sound_feedback:
                         funcs.play_sound_threaded(funcs.speech_off)
+                    funcs.v_print("~Phrase Complete")
                 
                 # Combine audio data from queue
                 audio_data = b''.join(data_queue.queue)
@@ -102,13 +110,14 @@ def run():
                 # Clamp the audio stream frequency to a PCM wavelength compatible default of 32768hz max.
                 audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
 
-                # Read the transcription.
-                # result = audio_model.transcribe(audio_np, fp16=torch.cuda.is_available())
+                # Process this chunk of audio
                 start_time = time.time()
                 online.insert_audio_chunk(audio_np)
+                # o : tuple[Start, End, Transcription] 
                 o : tuple[Any|None, Any|None, str] = online.process_iter()
                 end_time = time.time()
                 transcription_time = end_time - start_time
+                # Adding this line since on slower PCs it has the chance to stop the recording early due to how long processing takes.
                 if transcription_time > (opts.SILENCE_TIMEOUT):
                     phrase_time += transcription_time
                 # print(f"Partial result: {o}")
@@ -123,12 +132,6 @@ def run():
                     result = finished_transcription(online, transcription)
                     funcs.v_print(f"\n\nFinal Transcription: \n{result}\n\n")
                     transcription = ''
-                # Clear the console to reprint the updated transcription.
-                # os.system('cls' if os.name=='nt' else 'clear')
-                # for line in transcription:
-                #     print(line)
-                # # Flush stdout.
-                # print('', end='', flush=True)
             else:
                 if (now - phrase_time) > opts.SILENCE_TIMEOUT and not phrase_complete:
                     phrase_complete = True
@@ -146,6 +149,8 @@ def run():
             break
 
 
+# Called when end of speech is detected
+# resets and re-inits the online ASR model and queues the message to be added to the conversation
 def finished_transcription(online, transcription) -> str:
     o = online.finish()
     if o[0] is not None:
