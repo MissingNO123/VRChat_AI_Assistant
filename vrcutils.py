@@ -60,14 +60,14 @@ class LogWatcher:
         self.world_id = ""
         self.instance_id = ""
         self.instance_privacy = ""
-        self.process_monitor_thread = threading.Thread(target=self._monitor_vrchat)
-        self.log_watcher_thread = threading.Thread(target=self._watch_log_file)
+        self.process_monitor_thread = threading.Thread(target=self._monitor_vrchat, daemon=True)
+        self.log_watcher_thread = threading.Thread(target=self._watch_log_file, daemon=True)
         self.log_directory = os.path.join(os.path.expanduser("~"), 'AppData', 'LocalLow', 'VRChat', 'VRChat')
         # TODO: add logic for Linux/Proton
 
     def start(self):
         self.running = True
-        self.process_monitor_thread = threading.Thread(target=self._monitor_vrchat)
+        # self.process_monitor_thread = threading.Thread(target=self._monitor_vrchat)
         self.process_monitor_thread.start()
 
     def stop(self):
@@ -93,7 +93,7 @@ class LogWatcher:
                 if self.log_watcher_thread.is_alive():
                     self.log_watcher_thread.join()
                     self.log_file = None
-            time.sleep(30)
+            time.sleep(60)
 
     def _watch_log_file(self):
         while self.vrc_is_running:
