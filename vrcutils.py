@@ -84,14 +84,12 @@ class LogWatcher:
         while opts.LOOP and self.running:
             self.vrc_is_running = self._check_vrchat_running()
             if self.vrc_is_running:
-                funcs.v_print("VRChat is running")
                 if self.log_file is None: 
                     self.log_file = self._get_log_file(self.log_directory)
                 if not self.log_watcher_thread.is_alive():
                     self.log_watcher_thread = threading.Thread(target=self._watch_log_file)
                     self.log_watcher_thread.start()
             else:
-                funcs.v_print("VRChat is NOT running")
                 if self.log_watcher_thread.is_alive():
                     self.log_watcher_thread.join()
                     self.log_file = None
