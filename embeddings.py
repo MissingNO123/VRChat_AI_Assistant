@@ -10,6 +10,7 @@ import json
 from typing import List, Dict
 
 import options as opts
+import functions as funcs
 
 print("hi mom")
 matryoshka_dim = 512
@@ -44,6 +45,7 @@ def add_to_memory(data) -> None:
 
 
 def load_memory_from_file() -> None:
+    start_time = time.time()
     memory_file = os.path.join(os.path.dirname(__file__), "memory.json")
     if not os.path.exists(memory_file):
         print("No memory file found.")
@@ -56,6 +58,8 @@ def load_memory_from_file() -> None:
                 add_to_memory(item)
         except Exception as e:
             print(f"Error loading memory from file: {e}")
+    end_time = time.time()
+    funcs.v_print(f"Memory loaded from file in {end_time - start_time:0.3f} seconds.")
 
 
 def _get_similarity(query_embedding, db, top_k=top_k) -> List[List[Dict[str, int | float]]]:
