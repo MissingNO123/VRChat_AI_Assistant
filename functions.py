@@ -26,9 +26,9 @@ speech_off = "Speech Sleep.wav"
 speech_mis = "Speech Misrecognition.wav"
 
 
-def v_print(text):
+def v_print(*args, **kwargs):
     if opts.verbosity:
-        print(text)
+        print(*args, **kwargs)
 
 
 def queue_message(message):
