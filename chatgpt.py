@@ -1,3 +1,6 @@
+# chatgpt.py (c) 2023 MissingNO123
+# Description: This module contains functions to handle the main chat generation loop. It sends messages to an OpenAI API-compatible model and processes the streamed token responses. The module also contains functions to dynamically generate system prompts and call OpenAI functions. It is also able to return the raw completion object to be handled by other modules.
+
 import openai
 import time, sys
 from datetime import datetime
@@ -6,7 +9,7 @@ import vrcutils as vrc
 import options as opts
 import functions as funcs
 import embeddings as emb
-emb.load_memory()
+emb.load_memory_from_file()
 
 logit_bias = {
 #   'As',        'as',       ' an',      'AI',          ' AI',        ' language',  ' model',     'model',           

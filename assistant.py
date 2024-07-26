@@ -1,5 +1,5 @@
 # Copyright (C) MissingNO123 17 Mar 2023
-# Description: Main program for the VRChat Assistant
+# Description: Main program for the VRChat AI Assistant
 
 import os
 from io import BytesIO

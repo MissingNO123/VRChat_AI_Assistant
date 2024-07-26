@@ -1,3 +1,6 @@
+# functions.py (c) 2023 MissingNO123
+# Description: This module contains global utility functions that are reused throughout the program.
+
 import re
 import wave
 import pyaudio

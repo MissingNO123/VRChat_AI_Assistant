@@ -1,3 +1,6 @@
+# vrcutils.py (c) 2023 MissingNO123
+# Description: This module contains utility functions for interfacing with VRChat. It provides functions for sending messages to the chatbox, setting avatar parameters, and handling OSC messages from VRChat. The module also initializes the OSC client and server for communication with VRChat.
+
 from pythonosc import udp_client
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import ThreadingOSCUDPServer

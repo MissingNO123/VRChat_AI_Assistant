@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# whisper_online.py (c) 2024 MissingNO123 ft. some guy on github
+# Description: This module contains the backend for the continous speech recognition system. It uses Faster Whisper to transcribe audio data in real-time, and provides an interface for the main listening module to interact with the model. 
 import sys
 import numpy as np
 import librosa  

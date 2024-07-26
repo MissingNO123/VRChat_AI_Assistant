@@ -1,3 +1,5 @@
+# embeddings.py (c) 2024 MissingNO123
+# Description: This module handles vector embeddings for the bot's memory system. It uses the SentenceTransformers library to encode text data into vectors, which are then used to find similar data in the memory. The memory is a list of dictionaries, each containing a text data field and its corresponding vector embedding. The data returned from semantic search is used by the chat module to dynamically inject the results from memory search into the system prompt at generation time.
 import torch.nn.functional as F
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import semantic_search
@@ -12,7 +14,8 @@ import options as opts
 print("hi mom")
 matryoshka_dim = 512
 top_k = 6
-model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
+# model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
+model = SentenceTransformer(opts.sentence_transformer_model)
 
 memory =  []
 history = []
@@ -40,7 +43,7 @@ def add_to_memory(data) -> None:
     # print(f"Added to memory in {end_time - start_time:0.3f} seconds.")
 
 
-def load_memory() -> None:
+def load_memory_from_file() -> None:
     memory_file = os.path.join(os.path.dirname(__file__), "memory.json")
     if not os.path.exists(memory_file):
         print("No memory file found.")

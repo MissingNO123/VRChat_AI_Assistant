@@ -1,3 +1,6 @@
+# texttospeech.py (c) 2023 MissingNO123
+# Description: This module contains the text-to-speech functions for the bot. It provides functions for converting text to speech using various TTS engines. The module also contains utility functions for filtering text input to make it more pronouncable by TTS engines, as well as converting audio files between different formats.
+
 import time
 import os
 import re

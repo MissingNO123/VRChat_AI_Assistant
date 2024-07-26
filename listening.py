@@ -1,3 +1,5 @@
+# listening.py (c) 2024 MissingNO123 ft. some guy on github 
+# Description: This module contains the main loop for listening to the microphone and processing speech. It uses the SpeechRecognition library to listen to the microphone and receive audio data, which is then processed by the Whisper ASR model. The model is loaded and initialized at startup, and the audio data is passed to the model in chunks for real-time transcription. The final transcription is then passed to the chat module for processing and response generation.
 import audioop
 import os
 from typing import Any

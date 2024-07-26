@@ -1,3 +1,6 @@
+# options.py (c) 2023 MissingNO123
+# Description: This module contains all the options and settings for the bot. It is used to configure the bot's behavior and settings, as well as handle variables that need to be accessible across modules. The options are loaded from a JSON file on startup, and can be saved back to the file at any time.
+
 import json
 from pynput.keyboard import Key
 import os
@@ -43,7 +46,10 @@ presence_penalty = 0.5
 top_p = 0.4
 min_p = 0.01
 top_k = 69
-similarity_threshold = 0.5      # Threshold for semantic memory search
+
+# Memory options
+sentence_transformer_model = "sentence-transformers/all-mpnet-base-v2"
+similarity_threshold = 0.5      # Threshold for semantic memory search results to be considered
 
 # TTS options
 tts_engine = None
@@ -123,6 +129,8 @@ safe_keys = [
     "top_p",
     "min_p",
     "top_k",
+
+    "sentence_transformer_model",
     "similarity_threshold",
 
     "tts_engine_name",

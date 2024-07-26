@@ -1,3 +1,6 @@
+# uistuff.py (c) 2023 MissingNO123
+# Description: Contains all of the code to create the GUI for the bot's control panel. The GUI is built using the customtkinter module, which is a wrapper around the tkinter module. The GUI is divided into several frames, each containing a different set of options for the user to configure. The GUI also provides a chat window for direct text input.
+
 import os
 import sys
 import threading
