@@ -292,18 +292,18 @@ def generate_system_prompt_object():
     content += f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M %p")}.'
     if opts.gpt != 'custom':
         content += f' You are using {opts.gpt} from OpenAI.'
-    if (funcs.log_parser.running):
+    if (vrc.log_parser.vrc_is_running):
         content += " In VRChat, "
-        content += f'The world {opts.bot_name} is in is named \"{funcs.log_parser.world_name}\"'
-        content += f', Instance ID:{funcs.log_parser.instance_id}'
-        content += f', and its privacy is {funcs.log_parser.instance_privacy}.'
+        content += f'The world {opts.bot_name} is in is named \"{vrc.log_parser.world_name}\"'
+        content += f', Instance ID:{vrc.log_parser.instance_id}'
+        content += f', and its privacy is {vrc.log_parser.instance_privacy}.'
         
-        player_list = funcs.get_player_list()
-        player_count = funcs.get_player_count()
+        player_list = vrc.get_player_list()
+        player_count = vrc.get_player_count()
         if player_list != None and player_count != None:
             content += f' There are {player_count} players with you in the world: '
-            player_list = ', '.join([f'"{item}"' for item in player_list]) # formats it to look like a python list, might inference better idk
-            player_list = f"[{player_list}]"
+            player_list = ', '.join([f'"{item}"' for item in player_list]) 
+            player_list = f"[{player_list}]" # formats it to look like a python list, might inference better idk
             content += player_list
     
     content += "\n\n"
