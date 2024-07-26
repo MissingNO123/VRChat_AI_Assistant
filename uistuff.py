@@ -368,9 +368,9 @@ class AudioStuffFrame(customtkinter.CTkFrame):
 
         vcmd = (self.register(self._validate))
         
-        self.rms_threshold = customtkinter.StringVar(self, value=opts.THRESHOLD)
-        self.silence_timeout = customtkinter.StringVar(self, value=opts.SILENCE_TIMEOUT)
-        self.max_recording_time = customtkinter.StringVar(self, value=opts.MAX_RECORDING_TIME)
+        self.rms_threshold = customtkinter.StringVar(self, value=opts.recording_threshold)
+        self.silence_timeout = customtkinter.StringVar(self, value=opts.silence_timeout)
+        self.max_recording_time = customtkinter.StringVar(self, value=opts.max_recording_time)
         self.input_device_name = customtkinter.StringVar(self, value=opts.in_dev_name)
         self.output_device_name = customtkinter.StringVar(self, value=opts.out_dev_name)
 
@@ -425,10 +425,10 @@ class AudioStuffFrame(customtkinter.CTkFrame):
 
     def _update_audio_page(self, event=None):
         try:
-            opts.THRESHOLD = int(self.rms_threshold.get())
-            ears.recorder.energy_threshold = opts.THRESHOLD
-            opts.SILENCE_TIMEOUT = float(self.silence_timeout.get())
-            opts.MAX_RECORDING_TIME = float(self.max_recording_time.get())
+            opts.recording_threshold = int(self.rms_threshold.get())
+            ears.recorder.energy_threshold = opts.recording_threshold
+            opts.silence_timeout = float(self.silence_timeout.get())
+            opts.max_recording_time = float(self.max_recording_time.get())
             opts.in_dev_name = self.input_device_name.get()
             opts.out_dev_name = self.output_device_name.get()
         except ValueError as e:

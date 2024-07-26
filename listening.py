@@ -18,7 +18,7 @@ FasterWhisperASR.whisper_compute_type = opts.whisper_compute_type
 # Thread safe Queue for passing data from the threaded recording callback.
 data_queue = Queue()
 recorder = sr.Recognizer()
-recorder.energy_threshold = opts.THRESHOLD
+recorder.energy_threshold = opts.recording_threshold
 # Dynamic energy compensation lowers the energy threshold to a point where the SpeechRecognizer never stops recording, so we disable it.
 recorder.dynamic_energy_threshold = False
 
@@ -47,7 +47,7 @@ def run():
 
     # Create a background thread that will pass us raw audio bytes.
     # We could do this manually but SpeechRecognizer provides a nice helper.
-    recorder.listen_in_background(source, record_callback, phrase_time_limit=opts.MAX_RECORDING_TIME)
+    recorder.listen_in_background(source, record_callback, phrase_time_limit=opts.max_recording_time)
 
     phrase_time = -1
     phrase_complete = True
@@ -91,7 +91,7 @@ def run():
                 phrase_complete = False
                 # If enough time has passed between recordings, consider the phrase complete.
                 # Clear the current working audio buffer to start over with the new data.
-                if phrase_time and phrase_time != -1 and (now - phrase_time) > opts.SILENCE_TIMEOUT:
+                if phrase_time and phrase_time != -1 and (now - phrase_time) > opts.silence_timeout:
                     phrase_complete = True
                     opts.trigger = False
                     if opts.sound_feedback:
@@ -118,7 +118,7 @@ def run():
                 end_time = time.time()
                 transcription_time = end_time - start_time
                 # Adding this line since on slower PCs it has the chance to stop the recording early due to how long processing takes.
-                if transcription_time > (opts.SILENCE_TIMEOUT):
+                if transcription_time > (opts.silence_timeout):
                     phrase_time += transcription_time
                 # print(f"Partial result: {o}")
                 if o[0] is not None:
@@ -133,7 +133,7 @@ def run():
                     funcs.v_print(f"\n\nFinal Transcription: \n{result}\n\n")
                     transcription = ''
             else:
-                if (now - phrase_time) > opts.SILENCE_TIMEOUT and not phrase_complete:
+                if (now - phrase_time) > opts.silence_timeout and not phrase_complete:
                     phrase_complete = True
                     opts.trigger = False
                     if opts.sound_feedback:

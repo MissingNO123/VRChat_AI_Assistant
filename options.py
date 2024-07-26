@@ -64,9 +64,9 @@ gcloud_letter_id = "F"
 gcloud_voice_name = f"{gcloud_language_code}-{gcloud_tts_type}-{gcloud_letter_id}"
 
 # Speech recognition options
-THRESHOLD = 1024            # adjust this to set the minimum volume threshold to start/stop recording
-MAX_RECORDING_TIME = 30.0     # maximum recording time in seconds
-SILENCE_TIMEOUT = 2.0         # timeout in seconds for detecting silence
+recording_threshold = 1024    # adjust this to set the minimum volume threshold to start/stop recording
+max_recording_time = 30.0     # maximum recording time in seconds
+silence_timeout = 2.0         # timeout in seconds for detecting silence
 OUTPUT_FILENAME = "recording.wav"
 
 # System Prompt ##############################################################################################################################
@@ -133,12 +133,10 @@ safe_keys = [
     "gcloud_language_code",
     "gcloud_tts_type",
     "gcloud_letter_id",
-    "gcloud_voice_name",
 
-    "THRESHOLD",
-    "MAX_RECORDING_TIME",
-    "SILENCE_TIMEOUT",
-    "OUTPUT_FILENAME",
+    "recording_threshold",
+    "max_recording_time",
+    "silence_timeout",
 
     "bot_name",
     "bot_personality",
@@ -187,8 +185,10 @@ def load_config():
             else:
                 print( f'!! "{key}" found in config file doesn\'t correlate to a setting' )
     
-    global message_array
+    global message_array, gcloud_voice_name
     message_array = example_messages.copy()
+    gcloud_voice_name = f"{gcloud_language_code}-{gcloud_tts_type}-{gcloud_letter_id}"
+
 
 
 if os.path.exists(config_file):

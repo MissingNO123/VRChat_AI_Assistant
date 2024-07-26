@@ -200,7 +200,7 @@ def faster_whisper_transcribe(recording):
         funcs.v_print(f'lang: {info.language}, {info.language_probability * 100:.1f}%')
 
         # if too short, skip
-        if info.duration <= (opts.SILENCE_TIMEOUT + 0.1):
+        if info.duration <= (opts.silence_timeout + 0.1):
             vrc.chatbox('⚠ [nothing heard]')
             if opts.sound_feedback:
                 funcs.play_sound_threaded(funcs.speech_mis)
@@ -498,7 +498,7 @@ def loop():
             rms = audioop.rms(data, 2)
 
             if opts.audio_trigger_enabled:
-                if (not recording and rms > opts.THRESHOLD):
+                if (not recording and rms > opts.recording_threshold):
                     opts.trigger = True
 
             # Start recording if sound goes above threshold or parameter is triggered, but not if gpt is generating
@@ -511,12 +511,12 @@ def loop():
                 funcs.v_print("~Recording...")
                 recording = True
                 # set timeout to now + SILENCE_TIMEOUT seconds
-                silence_timeout_timer = time.time() + opts.SILENCE_TIMEOUT
+                silence_timeout_timer = time.time() + opts.silence_timeout
                 if opts.sound_feedback:
                     funcs.play_sound_threaded(funcs.speech_on)
             elif recording:  # If already recording, continue appending frames
                 frames.append(data)
-                if rms < opts.THRESHOLD:
+                if rms < opts.recording_threshold:
                     if time.time() > silence_timeout_timer:  # if silent for longer than SILENCE_TIMEOUT, save
                         funcs.v_print("~Saving (silence)...")
                         recording = False
@@ -527,10 +527,10 @@ def loop():
                         opts.panic = False
                 else:
                     # set timeout to now + SILENCE_TIMEOUT seconds
-                    silence_timeout_timer = time.time() + opts.SILENCE_TIMEOUT
+                    silence_timeout_timer = time.time() + opts.silence_timeout
 
                 # if recording for longer than MAX_RECORDING_TIME, save
-                if len(frames) * CHUNK_SIZE >= opts.MAX_RECORDING_TIME * RATE:
+                if len(frames) * CHUNK_SIZE >= opts.max_recording_time * RATE:
                     funcs.v_print("~Saving (length)...")
                     recording = False
                     opts.trigger = False
