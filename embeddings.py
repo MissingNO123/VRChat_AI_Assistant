@@ -50,14 +50,20 @@ def load_memory_from_file() -> None:
     if not os.path.exists(memory_file):
         print("No memory file found.")
         return
-    with open(memory_file, 'r', encoding='utf8') as memory_data:
+    with open(memory_file, 'r', encoding='utf8') as memory_file_data:
+        global memory
+        old_memory = memory.copy()
         try: 
-            memory_json = json.load(memory_data)
+            memory.clear()
+            memory_json = json.load(memory_file_data)
             items = memory_json.get("items", [])
             for item in items:
                 add_to_memory(item)
         except Exception as e:
             print(f"Error loading memory from file: {e}")
+            memory = old_memory
+        finally:
+            del old_memory
     end_time = time.time()
     funcs.v_print(f"Memory loaded from file in {end_time - start_time:0.3f} seconds.")
 
