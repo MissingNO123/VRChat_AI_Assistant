@@ -50,6 +50,7 @@ top_k = 69
 # Memory options
 sentence_transformer_model = "sentence-transformers/all-mpnet-base-v2"
 similarity_threshold = 0.5      # Threshold for semantic memory search results to be considered
+memory_top_k = 5                # Number of memory search results to return
 
 # TTS options
 tts_engine = None
@@ -110,7 +111,7 @@ safe_keys = [
     "verbosity",
     "chatbox",
     "parrot_mode",
-    "soundFeedback",
+    "sound_feedback",
     "audio_trigger_enabled",
     "key_trigger_key",
     "key_press_window",
@@ -132,6 +133,7 @@ safe_keys = [
 
     "sentence_transformer_model",
     "similarity_threshold",
+    "memory_top_k",
 
     "tts_engine_name",
     "windows_tts_voice_id",
@@ -174,20 +176,20 @@ def load_config():
                 print( f'!! Detected attempt to override safe keys, not loading' )
                 continue
             if key in safe_keys:
-                if not type(value) == type(globals()[key]):
-                    if key == "key_trigger_key":
-                        try:
-                            trigger_key = getattr(Key, value)
-                            value = trigger_key
-                        except AttributeError:
-                            print( f'!! { key } invalid trigger key, not loading' )
-                            continue   
-                    else:
-                        print( f'!! { key } has wrong type in config file, not loading' )
-                        continue
-
                 if key in globals():
-                    globals()[key] = value
+                    if not type(value) == type(globals()[key]):
+                        if key == "key_trigger_key":
+                            try:
+                                trigger_key = getattr(Key, value)
+                                value = trigger_key
+                            except AttributeError:
+                                print( f'!! { key } invalid trigger key, not loading' )
+                                continue   
+                        else:
+                            print( f'!! { key } has wrong type in config file, not loading' )
+                            continue
+                    else:
+                        globals()[key] = value
                 else:
                     print( f'!! "{key}" correlates to setting but somehow isn\'t present in module, not loading' )
             else:
