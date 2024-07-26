@@ -29,6 +29,7 @@ import chatgpt
 import vrcutils as vrc
 import functions as funcs
 import listening
+import embeddings as emb
 
 os.system('cls' if os.name=='nt' else 'clear')
 
@@ -392,6 +393,21 @@ def handle_command(command):
                 f'🦜 Parrot mode is now {"on" if opts.parrot_mode else "off"}')
             funcs.play_sound(
                 f'./prebaked_tts/Parrotmodeisnow{"on" if opts.parrot_mode else "off"}.wav')
+            
+        case 'reloadmemory':
+            emb.load_memory_from_file()
+            funcs.play_sound('./prebaked_tts/Memoryreloaded.wav')
+            vrc.chatbox('🧠 Memory reloaded')
+
+        case 'saveconfig':
+            opts.save_config()
+            funcs.play_sound('./prebaked_tts/Configurationsaved.wav')
+            vrc.chatbox('💾 Configuration saved')
+
+        case 'loadconfig':
+            opts.load_config()
+            funcs.play_sound('./prebaked_tts/Configurationloaded.wav')
+            vrc.chatbox('📝 Configuration loaded')
 
         case 'thesenutsinyourmouth':
             vrc.chatbox('🤖 Do you like Imagine Dragons?')
@@ -404,7 +420,7 @@ def handle_command(command):
         case _:
             print(f"$Unknown command: {command}")
             funcs.play_sound('./prebaked_tts/Unknowncommand.wav')
-
+ui.set_handle_command(handle_command)
 
 def default_handler(address, *args):
     """ Default handler for OSC messages received from VRChat """

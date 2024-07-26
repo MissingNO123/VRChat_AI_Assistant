@@ -61,6 +61,11 @@ Frame 6: Direct Text Input
 app = None
 icon = os.getcwd() + "\\icon.ico"
 
+_handle_command: Optional[Callable] = None
+def set_handle_command(func):
+    global _handle_command
+    _handle_command = func
+
 
 class Popup(customtkinter.CTkToplevel):
     def __init__(self, master, window_title, window_text, button_text, *args, **kwargs):
@@ -904,25 +909,28 @@ class ManualTextEntryWindow(customtkinter.CTkToplevel):
         print(f'$ Messages cleared!')
         self.after(1000, self.refresh_messages)
 
-
     def _start_send(self, event=None):
         while opts.generating: time.sleep(0.1)
         user_text = self.text_entry.get().strip()
-        if len(user_text) > 0:
-            # opts.bot_responded = False
-            self.button_send.configure(text="Wait...", state="disabled")
-            self.textfield_text_entry.configure(state="disabled")
-            print(f'\nUser: {user_text}')
+        if len(user_text) <= 0: return
+        if user_text[0] == "/":
+            _handle_command(user_text[1:])
             self.text_entry.set("")
-            self.addtext("\n---\nUser: " + user_text)
-            funcs.append_user_message(user_text)
-            # generate_thread = threading.Thread(target=self._generate, args=(user_text=user_text,))
-            if opts.parrot_mode:
-                self.result = user_text
-                self._end_send()
-            else:
-                generate_thread = threading.Thread(target=self._generate, args=(user_text,))
-                generate_thread.start()
+            return
+        # opts.bot_responded = False
+        self.button_send.configure(text="Wait...", state="disabled")
+        self.textfield_text_entry.configure(state="disabled")
+        print(f'\nUser: {user_text}')
+        self.text_entry.set("")
+        self.addtext("\n---\nUser: " + user_text)
+        funcs.append_user_message(user_text)
+        # generate_thread = threading.Thread(target=self._generate, args=(user_text=user_text,))
+        if opts.parrot_mode:
+            self.result = user_text
+            self._end_send()
+        else:
+            generate_thread = threading.Thread(target=self._generate, args=(user_text,))
+            generate_thread.start()
 
     def _generate(self, user_text, *args, **kwargs):
         opts.generating = True
