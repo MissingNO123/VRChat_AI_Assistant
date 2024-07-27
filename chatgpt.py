@@ -278,17 +278,32 @@ def call_function(function_args):
         print(f"!!Exception: {e}")
         return None
     
-
+prev_semantic_results = ""
 def generate_system_prompt_object():
     # create object with system prompt and other realtime info
+    system_prompt = opts.system_prompt.format(bot_name=opts.bot_name, bot_personality=opts.bot_personality)
 
+    global prev_semantic_results
+    # attempt to look up relevant details from memory
     semantic_results = emb.search_memory(opts.message_array[-1]["content"])
     semantic_results = " ".join(semantic_results)
 
-    system_prompt = opts.system_prompt.format(bot_name=opts.bot_name, bot_personality=opts.bot_personality)
+    # persist memory results for at least one extra generation 
+    # but remove any repeated sentences to save tokens
+    if semantic_results != "" and prev_semantic_results != "":
+        # Find common text and remove it from prev_semantic_results
+        for sentence in semantic_results.split("."):
+            if sentence in prev_semantic_results:
+                prev_semantic_results = prev_semantic_results.replace(sentence, "")
     
     content = ""
-    content += f'Extra info: {semantic_results}'
+
+    if semantic_results != "": 
+        content += f' Extra info: {semantic_results}'
+        if prev_semantic_results != "":
+            content += f' {prev_semantic_results}'
+    prev_semantic_results = semantic_results
+
     content += f' The current date and time is {datetime.now().strftime("%A %B %d %Y, %I:%M %p")}.'
     if opts.gpt != 'custom':
         content += f' You are using {opts.gpt} from OpenAI.'
