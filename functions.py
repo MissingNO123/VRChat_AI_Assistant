@@ -2,6 +2,7 @@
 # Description: This module contains global utility functions that are reused throughout the program.
 
 import json
+import os
 import re
 import wave
 import pyaudio
@@ -294,8 +295,12 @@ def load_badwords_from_file(file_path):
         print(f"File not found: {file_path}")
         return {'input': [], 'output': []}
 
-file_path = 'badwords.json'
-regexes = load_badwords_from_file(file_path)
+badwords_file = os.path.join(os.path.dirname(__file__), "badwords.json")
+badwords_file_example = os.path.join(os.path.dirname(__file__), "badwords.example.json")
+if not os.path.exists(badwords_file):
+    if os.path.exists(badwords_file_example):
+        os.copy(badwords_file_example, 'badwords.json')
+regexes = load_badwords_from_file(badwords_file)
 
 
 # Replace bad words in a string with asterisks
