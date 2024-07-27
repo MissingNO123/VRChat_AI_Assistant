@@ -1,6 +1,7 @@
 # embeddings.py (c) 2024 MissingNO123
 # Description: This module handles vector embeddings for the bot's memory system. It uses the SentenceTransformers library to encode text data into vectors, which are then used to find similar data in the memory. The memory is a list of dictionaries, each containing a text data field and its corresponding vector embedding. The data returned from semantic search is used by the chat module to dynamically inject the results from memory search into the system prompt at generation time.
 import torch.nn.functional as F
+from torch import cuda
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import semantic_search
 
@@ -17,6 +18,8 @@ matryoshka_dim = 512
 top_k = 6
 # model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
 model = SentenceTransformer(opts.sentence_transformer_model)
+if cuda.is_available():
+    model.to("cuda")
 
 memory =  []
 history = []
@@ -35,21 +38,34 @@ def search_memory(query, similarity_threshold=opts.similarity_threshold) -> List
     return filtered_results
 
 
-def add_to_memory(data) -> None:
+def add_to_memory(data: str) -> None:
     start_time = time.time()
     data_embedding = _get_embedding(data)
     if data_embedding is not None: 
         memory.append({"data": data, "embedding": data_embedding})
     end_time = time.time()
-    # print(f"Added to memory in {end_time - start_time:0.3f} seconds.")
+    funcs.v_print(f"Added to memory in {end_time - start_time:0.3f} seconds.")
+
+
+def add_list_to_memory(data: List[str]) -> None:
+    start_time = time.time()
+    data_emeddings = _get_embedding(data)
+    for i, data_embedding in enumerate(data_emeddings):
+        memory.append({"data": data[i], "embedding": data_embedding})
+    end_time = time.time()
+    funcs.v_print(f"Added list to memory in {end_time - start_time:0.3f} seconds.")
 
 
 def load_memory_from_file() -> None:
     start_time = time.time()
     memory_file = os.path.join(os.path.dirname(__file__), "memory.json")
+    memory_file_example = os.path.join(os.path.dirname(__file__), "memory.example.json")
     if not os.path.exists(memory_file):
-        print("No memory file found.")
-        return
+        if os.path.exists(memory_file_example):
+            os.copy(memory_file_example, memory_file)
+        else: 
+            print(f"Memory file not found: {memory_file}")
+            return
     with open(memory_file, 'r', encoding='utf8') as memory_file_data:
         global memory
         old_memory = memory.copy()
@@ -57,8 +73,9 @@ def load_memory_from_file() -> None:
             memory.clear()
             memory_json = json.load(memory_file_data)
             items = memory_json.get("items", [])
-            for item in items:
-                add_to_memory(item)
+            add_list_to_memory(items)
+            # for item in items:
+            #     add_to_memory(item)
         except Exception as e:
             print(f"Error loading memory from file: {e}")
             memory = old_memory
@@ -74,7 +91,8 @@ def _get_similarity(query_embedding, db, top_k=top_k) -> List[List[Dict[str, int
 
 
 def _get_embedding(query):
-    return model.encode(query, convert_to_tensor=True)
+    device = "cuda" if cuda.is_available() else "cpu"
+    return model.encode(query, convert_to_tensor=True, precision="int8", device=device)
 
 
 if __name__ == "__main__":
