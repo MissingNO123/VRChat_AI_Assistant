@@ -406,6 +406,16 @@ def handle_command(command):
 
         case 'loadconfig':
             opts.load_config()
+            ui.app.ai_stuff_frame.textbox_persona.delete("0.0", "end")
+            ui.app.ai_stuff_frame.textbox_persona.insert("0.0", opts.bot_personality)
+            ui.app.ai_stuff_frame.textbox_system_prompt.delete("0.0", "end")
+            ui.app.ai_stuff_frame.textbox_system_prompt.insert("0.0", opts.system_prompt)
+            if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
+                ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
+            ui.app.ai_stuff_frame.update_radio_buttons()
+            ui.app.program_bools_frame.update_checkboxes()
+            ui.app.audio_stuff_frame.refresh_audio_page()
+            ui.app.tts_selector_frame._set_tts_engine(opts.tts_engine_name)
             funcs.play_sound('./prebaked_tts/Configurationloaded.wav')
             vrc.chatbox('📝 Configuration loaded')
 

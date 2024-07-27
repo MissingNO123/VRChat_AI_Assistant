@@ -422,20 +422,31 @@ class AudioStuffFrame(customtkinter.CTkFrame):
         row_id += 1
 
         for field in self.textfields:
-            field.bind("<FocusOut>", self._update_audio_page)
-            field.bind("<Return>", self._update_audio_page)
+            field.bind("<FocusOut>", self._update_audio_variables)
+            field.bind("<Return>", self._update_audio_variables)
+
+    def refresh_audio_page(self):
+        try:
+            self.rms_threshold.set( opts.recording_threshold )
+            self.silence_timeout.set( opts.silence_timeout )
+            self.max_recording_time.set( opts.max_recording_time )
+            self.input_device_name.set( opts.in_dev_name )
+            self.output_device_name.set( opts.out_dev_name )
+        except Exception as e:
+            print(f"Error initializing audio page: {e}")
 
     def _spinbox_callback(self):
         self.rms_threshold.set( self.spinbox_rms_threshold.get() )
         self.silence_timeout.set( self.spinbox_silence_timeout.get() )
         self.max_recording_time.set( self.spinbox_max_recording_time.get() )
-        self._update_audio_page()
+        self._update_audio_variables()
 
-    def _update_audio_page(self, event=None):
+    def _update_audio_variables(self, event=None):
         try:
             opts.recording_threshold = int(self.rms_threshold.get())
             ears.recorder.energy_threshold = opts.recording_threshold
             opts.silence_timeout = float(self.silence_timeout.get())
+            ears.recorder.pause_threshold = opts.silence_timeout
             opts.max_recording_time = float(self.max_recording_time.get())
             opts.in_dev_name = self.input_device_name.get()
             opts.out_dev_name = self.output_device_name.get()
