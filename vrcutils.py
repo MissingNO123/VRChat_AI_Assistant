@@ -9,6 +9,8 @@ from pythonosc.osc_server import ThreadingOSCUDPServer
 import options as opts
 import functions as funcs
 
+vrc_request_timeout = time.time()
+vrc_player_count = "0"
 
 def chatbox(message):
     """ Send a message to the VRC chatbox if enabled """
@@ -60,14 +62,14 @@ class LogWatcher:
         self.world_id = ""
         self.instance_id = ""
         self.instance_privacy = ""
-        self.process_monitor_thread = threading.Thread(target=self._monitor_vrchat, daemon=True)
-        self.log_watcher_thread = threading.Thread(target=self._watch_log_file, daemon=True)
+        self.process_monitor_thread = threading.Thread(target=self._monitor_vrchat)
+        self.log_watcher_thread = threading.Thread(target=self._watch_log_file)
         self.log_directory = os.path.join(os.path.expanduser("~"), 'AppData', 'LocalLow', 'VRChat', 'VRChat')
         # TODO: add logic for Linux/Proton
 
     def start(self):
         self.running = True
-        # self.process_monitor_thread = threading.Thread(target=self._monitor_vrchat)
+        self.process_monitor_thread = threading.Thread(target=self._monitor_vrchat)
         self.process_monitor_thread.start()
 
     def stop(self):
