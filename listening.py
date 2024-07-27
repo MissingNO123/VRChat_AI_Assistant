@@ -35,6 +35,13 @@ def record_callback(_, audio:sr.AudioData) -> None:
         data = audio.get_raw_data()
         data_queue.put(data)
 
+        # if not opts.trigger and not (opts.generating or opts.speaking) and opts.audio_trigger_enabled:
+        #     opts.trigger = True
+        #     if opts.sound_feedback:
+        #         funcs.play_sound_threaded(funcs.speech_on)
+        #     vrc.chatbox("👂 Listening...")
+        #     funcs.v_print("~Listening...")
+
 
 # Main function for listening to the microphone and processing speech.
 def run():
@@ -51,6 +58,7 @@ def run():
     # Create a background thread that will pass us raw audio bytes.
     # We could do this manually but SpeechRecognizer provides a nice helper.
     recorder.listen_in_background(source, record_callback, phrase_time_limit=opts.max_recording_time)
+    recorder.pause_threshold = opts.silence_timeout
 
     phrase_time = -1
     phrase_complete = True
@@ -84,21 +92,14 @@ def run():
             now = time.time()
             # Pull raw recorded audio from the queue if it's not empty.
             if not data_queue.empty():
-                if not opts.trigger:
-                    opts.trigger = True
-                    if opts.sound_feedback:
-                        funcs.play_sound_threaded(funcs.speech_on)
-                    if opts.chatbox:
-                        vrc.chatbox("👂 Listening...")
-                    funcs.v_print("~Listening...")
                 phrase_complete = False
                 # If enough time has passed between recordings, consider the phrase complete.
                 # Clear the current working audio buffer to start over with the new data.
                 if phrase_time and phrase_time != -1 and (now - phrase_time) > opts.silence_timeout:
                     phrase_complete = True
                     opts.trigger = False
-                    if opts.sound_feedback:
-                        funcs.play_sound_threaded(funcs.speech_off)
+                    # if opts.sound_feedback:
+                    #     funcs.play_sound_threaded(funcs.speech_off)
                     funcs.v_print("~Phrase Complete")
                 
                 # Combine audio data from queue
@@ -132,16 +133,15 @@ def run():
                 # If we detected a pause between recordings, add a new item to our transcription.
                 # Otherwise edit the existing one.
                 if phrase_complete:
+                    vrc.chatbox('✏ Processing...')
                     result = finished_transcription(online, transcription)
                     funcs.v_print(f"\n\nFinal Transcription: \n{result}\n\n")
                     transcription = ''
             else:
                 if (now - phrase_time) > opts.silence_timeout and not phrase_complete:
                     phrase_complete = True
-                    opts.trigger = False
-                    if opts.sound_feedback:
-                        funcs.play_sound_threaded(funcs.speech_off)
                     phrase_time = -1
+                    vrc.chatbox('✏ Processing...')
                     result = finished_transcription(online, transcription)
                     funcs.v_print(f"\n\nFinal Transcription: \n{result}\n\n")
                     transcription = ''
@@ -155,6 +155,7 @@ def run():
 # Called when end of speech is detected
 # resets and re-inits the online ASR model and queues the message to be added to the conversation
 def finished_transcription(online, transcription) -> str:
+    opts.trigger = False
     o = online.finish()
     if o[0] is not None:
         transcription += o[2]
@@ -163,4 +164,5 @@ def finished_transcription(online, transcription) -> str:
     if len(transcription) > 0:
         funcs.queue_message(transcription)
         opts.bot_responded = False
+    data_queue.queue.clear()
     return transcription
