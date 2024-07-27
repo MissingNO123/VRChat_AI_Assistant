@@ -1,6 +1,8 @@
 # functions.py (c) 2023 MissingNO123
 # Description: This module contains global utility functions that are reused throughout the program.
 
+import json
+import re
 import wave
 import pyaudio
 import time
@@ -15,9 +17,6 @@ import texttospeech as ttsutils
 vb_out = None
 vb_in = None
 pyAudio = None
-
-vrc_request_timeout = time.time()
-vrc_player_count = "0"
 
 empty_audio = BytesIO(b"\x52\x49\x46\x46\x52\x49\x00\x00\x57\x41\x56\x45\x66\x6d\x74\x20\x10\x00\x00\x00\x01\x00\x01\x00\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00\x64\x61\x74\x61\x00\x00\x00\x00")
 
@@ -36,6 +35,7 @@ def queue_message(message):
     if len(message) == 0:
         print("!!Trying to append empty message to array")
         return
+    message = replace_bad_words(message, regexes["input"])
     opts.message_queue.append(message)
 
 
@@ -44,6 +44,7 @@ def append_user_message(message):
     if len(message) == 0:
         print("!!Trying to append empty message to array")
         return
+    message = replace_bad_words(message, regexes["input"])
     opts.message_array.append({"role": "user", "content": message})
 
 
@@ -52,6 +53,7 @@ def append_bot_message(message):
     if len(message) == 0:
         print("!!Trying to append empty message to array")
         return
+    message = replace_bad_words(message, regexes["output"])
     opts.message_array.append({"role": "assistant", "content": message})
 
 
@@ -264,3 +266,44 @@ def tts(text):
     play_sound(audioBytes)
     audioBytes.close()
     opts.speaking = False
+
+
+# Load regexes for filtering bad words from a JSON file
+def load_badwords_from_file(file_path):
+    compiled_regexes_in = []
+    compiled_regexes_out = []
+    try:
+        with open(file_path, 'r') as file:
+            regexes = json.load(file)
+            inputs = regexes.get("input")
+            outputs = regexes.get("output")
+        for regex_str in inputs:
+            try:
+                re.compile(regex_str)
+                compiled_regexes_in.append(regex_str)
+            except re.error:
+                print(f"Error compiling regex: {regex_str}")
+        for regex_str in outputs:
+            try:
+                re.compile(regex_str)
+                compiled_regexes_out.append(regex_str)
+            except re.error:
+                print(f"Error compiling regex: {regex_str}")
+        return {'input': compiled_regexes_in, 'output': compiled_regexes_out}
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+        return {'input': [], 'output': []}
+
+file_path = 'badwords.json'
+regexes = load_badwords_from_file(file_path)
+
+
+# Replace bad words in a string with asterisks
+def replace_bad_words(input_str, regexes):
+    for regex in regexes:
+        word = re.search(regex, input_str)
+        if word:
+            word = word.group()
+            replacement = ''.join('*' if c != ' ' else ' ' for c in word)
+            input_str = re.sub(regex, replacement, input_str)
+    return input_str

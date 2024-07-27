@@ -1,0 +1,10 @@
+{
+    "input": [
+        "\\bbadword(s)?\\b",
+        ".*badword.*"
+    ],
+    "output": [
+        "\\bbadword(s)?\\b",
+        ".*badword.*"
+    ]
+}

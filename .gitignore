@@ -17,3 +17,4 @@ prompts.txt
 config.json
 config.backup.json
 memory.json
+badwords.json
