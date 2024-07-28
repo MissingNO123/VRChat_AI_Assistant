@@ -182,25 +182,25 @@ class ProgramOptionsFrame(customtkinter.CTkFrame):
         opts.sound_feedback = bool(self.checkboxes[3].get())
         opts.audio_trigger_enabled = bool(self.checkboxes[4].get())
 
-    def update_checkboxes(self):
+    def refresh_checkboxes(self):
         # TODO: This is so ugly. Oh my god. I need to find a better way to do this.
-        if self.checkboxes[0].get() is not opts.verbosity: self.checkboxes[0].toggle()
-        if self.checkboxes[1].get() is not opts.chatbox: self.checkboxes[1].toggle()
-        if self.checkboxes[2].get() is not opts.parrot_mode: self.checkboxes[2].toggle()
-        if self.checkboxes[3].get() is not opts.sound_feedback: self.checkboxes[3].toggle()
-        if self.checkboxes[4].get() is not opts.audio_trigger_enabled: self.checkboxes[3].toggle()
+        if bool(self.checkboxes[0].get()) is not opts.verbosity: self.checkboxes[0].toggle()
+        if bool(self.checkboxes[1].get()) is not opts.chatbox: self.checkboxes[1].toggle()
+        if bool(self.checkboxes[2].get()) is not opts.parrot_mode: self.checkboxes[2].toggle()
+        if bool(self.checkboxes[3].get()) is not opts.sound_feedback: self.checkboxes[3].toggle()
+        if bool(self.checkboxes[4].get()) is not opts.audio_trigger_enabled: self.checkboxes[3].toggle()
 
 
 class AIStuffFrame(customtkinter.CTkFrame):
     def __init__(self, master, title):
         super().__init__(master)
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure((0,1,2,3), weight=1)
         self.title = title
         self.whispermodels = ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large", "large-v2"]
 
         self.title = customtkinter.CTkLabel(
             self, text=self.title, fg_color="gray30", corner_radius=6)
-        self.title.grid(row=0, column=0, columnspan=3, padx=10, pady=(10,0), sticky="ew")
+        self.title.grid(row=0, column=0, columnspan=4, padx=10, pady=(10,0), sticky="ew")
 
         self.manual_entry_window_is_open = customtkinter.BooleanVar(value=False)
         
@@ -226,7 +226,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
         # self.dropdown_whisper_model = customtkinter.CTkOptionMenu(self, variable=self.selected_whisper_model, values=self.whispermodels, command=self._set_whisper_model)
         # self.dropdown_whisper_model.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10)
         # row += 1
-        self.label_gpt_picker = customtkinter.CTkLabel(self, text="OpenAI GPT Model: ", fg_color="transparent")
+        self.label_gpt_picker = customtkinter.CTkLabel(self, text="GPT Model: ", fg_color="transparent")
         self.label_gpt_picker.grid(row=row, column=0, sticky="w", pady=(4,1), padx=5)
         row += 1
 
@@ -236,6 +236,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
         self.radiobutton_gpt_4.grid(row=row, column=1)
         self.radiobutton_gpt_custom = customtkinter.CTkRadioButton(self, text="Custom", command=self._set_variables, variable=self.gpt_radio_var, value=2)
         self.radiobutton_gpt_custom.grid(row=row, column=2)
+        row += 1
 
         self.label_max_tokens = customtkinter.CTkLabel(self, text="GPT Max Tokens: ", fg_color="transparent")
         self.label_max_tokens.grid(row=row, column=0, sticky="w", pady=(4,1), padx=5)
@@ -244,7 +245,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
         self.spinbox_max_tokens.grid(row=row, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
         row += 1
 
-        self.label_max_conv_length = customtkinter.CTkLabel(self, text="GPT Max Conv. Length: ", fg_color="transparent")
+        self.label_max_conv_length = customtkinter.CTkLabel(self, text="GPT Max Conv. History: ", fg_color="transparent")
         self.label_max_conv_length.grid(row=row, column=0, sticky="w", pady=(4,1), padx=5)
         row += 1
         self.spinbox_max_conv_length = IntSpinbox(self, step_size=1, min=2, value=self.max_conv_length_var.get(), command=self._spinbox_callback)
@@ -263,7 +264,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
         row += 1
         self.textbox_persona = customtkinter.CTkTextbox(self, height=122, wrap="word")
         self.textbox_persona.insert("0.0", opts.bot_personality)
-        self.textbox_persona.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(0,2))
+        self.textbox_persona.grid(row=row, column=0, columnspan=4, sticky="ew", padx=10, pady=(0,2))
         row += 1
 
         self.label_system_prompt = customtkinter.CTkLabel(self, text="System Instruction: ", fg_color="transparent")
@@ -271,7 +272,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
         row += 1
         self.textbox_system_prompt = customtkinter.CTkTextbox(self, height=122, wrap="word")
         self.textbox_system_prompt.insert("0.0", opts.system_prompt)
-        self.textbox_system_prompt.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(0,2))
+        self.textbox_system_prompt.grid(row=row, column=0, columnspan=4, sticky="ew", padx=10, pady=(0,2))
         row += 1
         # self.button_system_prompt = customtkinter.CTkButton(self, text="Update System Prompt", command=self._set_variables)
         # self.button_system_prompt.grid(row=13, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
@@ -281,11 +282,14 @@ class AIStuffFrame(customtkinter.CTkFrame):
         # row += 1
 
         self.button_spawn_chat_box = customtkinter.CTkButton(self, text="Open Conversation Window", command=self._spawn_manual_entry)
-        self.button_spawn_chat_box.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,2))
+        self.button_spawn_chat_box.grid(row=row, column=0, columnspan=4, sticky="ew", padx=10, pady=(2,2))
         row += 1
 
         self.button_save = customtkinter.CTkButton(self, text="Save Config", command=self._save_config)
-        self.button_save.grid(row=row, column=0, columnspan=3, sticky="ew", padx=10, pady=(2,10))
+        self.button_save.grid(row=row, column=0, columnspan=2, sticky="ew", padx=(10,2), pady=(2,10))
+
+        self.button_load = customtkinter.CTkButton(self, text="Load Config", command=self._load_config)
+        self.button_load.grid(row=row, column=2, columnspan=2, sticky="ew", padx=(2,10), pady=(2,10))
         row += 1
 
         self.textbox_system_prompt.bind("<FocusOut>", self._set_variables)
@@ -297,7 +301,7 @@ class AIStuffFrame(customtkinter.CTkFrame):
         self.textfield_whisper_prompt.bind("<FocusOut>", self._set_variables)
         self.textfield_whisper_prompt.bind("<Return>", self._set_variables)
 
-    def update_radio_buttons(self):
+    def refresh_radio_buttons(self):
         # value = 0 if opts.gpt == "GPT-3" else 1
         match opts.gpt:
             case "GPT-3":  value = 0 
@@ -318,6 +322,22 @@ class AIStuffFrame(customtkinter.CTkFrame):
         except Exception as e:
             print(f"Error saving config: {e}")
             popup_failure = Popup(self, window_title="Error Saving Config", window_text="There was an error saving the configuration.", button_text="OK") 
+            popup_failure.after(250, popup_failure.focus) # Why do I need to wait for this???
+
+    def _load_config(self):
+        popup = Popup_YesNo(self, window_title="Load Config", window_text="Are you sure you want to load the saved configuration?", button_confirm_text="Load", button_deny_text="Cancel", button_confirm_command=self._load_config_command)
+        popup.after(250, popup.focus) # Why do I need to wait for this???
+
+    def _load_config_command(self):
+        global app
+        try:
+            opts.load_config()
+            app.refresh_all()
+            popup_success = Popup(self, window_title="Config Loaded", window_text="The configuration has been loaded successfully.", button_text="OK")
+            popup_success.after(250, popup_success.focus) # Why do I need to wait for this???
+        except Exception as e:
+            print(f"Error loading config: {e}")
+            popup_failure = Popup(self, window_title="Error Loading Config", window_text="There was an error loading the configuration.", button_text="OK") 
             popup_failure.after(250, popup_failure.focus) # Why do I need to wait for this???
 
     def _reset_chat_buffer(self):
@@ -531,6 +551,11 @@ class TTSSelectorFrame(customtkinter.CTkFrame):
 
         self.frame_tts_options = WindowsTTSOptionsFrame(master=self, title="Windows TTS Configuration")
         self.frame_tts_options.grid(row=2, column=0, sticky="nsew", padx=0, pady=(10,0))
+
+    def refresh_panel(self):
+        self._set_tts_engine(opts.tts_engine_name)
+        self.selected_tts_engine_name.set(opts.tts_engine_name)
+        self.dropdown_tts_engine_select.set(self.selected_tts_engine_name.get())
 
     def _set_tts_engine(self, choice):
         match choice:
@@ -1207,7 +1232,7 @@ class App(customtkinter.CTk):
         super().__init__()
 
         self.title("VRChat AI Assistant")
-        self.geometry("860x738")
+        self.geometry("900x768")
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure((1,2), weight=1)
         self.grid_rowconfigure(0, weight=0)
@@ -1223,20 +1248,20 @@ class App(customtkinter.CTk):
         self.tts_selector_frame._set_tts_engine(opts.tts_engine_name)
         row_id += 1
 
-        self.program_bools_frame = ProgramOptionsFrame(self, "Program Options")
-        self.program_bools_frame.grid(row=row_id, column=column_id, padx=(10,0), pady=(10, 10), sticky="nsew")
+        self.audio_stuff_frame = AudioStuffFrame(self, "Audio Configuration")
+        self.audio_stuff_frame.grid(row=row_id, column=column_id, padx=(10,0), pady=(10, 10), sticky="nsew")
         row_id += 1
         
         column_id += 1
         row_id = 0
 
-        self.audio_stuff_frame = AudioStuffFrame(self, "Audio Configuration")
-        self.audio_stuff_frame.grid(row=row_id, column=column_id, padx=(10,0), pady=(10, 0), sticky="nsew")
+        self.keyboard_control_frame = KeyboardControlFrame(self, "Trigger Key Configuration")
+        self.keyboard_control_frame.grid(row=row_id, column=column_id, padx=(10,0), pady=(10, 0), sticky="nsew")
         row_id += 1
 
-        self.keyboard_control_frame = KeyboardControlFrame(self, "Trigger Key Configuration")
-        self.keyboard_control_frame.grid(row=row_id, column=column_id, padx=(10,0), pady=(10, 10), sticky="nsew")
-        row_id += 1
+        self.program_bools_frame = ProgramOptionsFrame(self, "Program Options")
+        self.program_bools_frame.grid(row=row_id, column=column_id, padx=(10,0), pady=(10, 10), sticky="nsew")
+        row_id += 1        
         
         column_id += 1
         row_id = 0
@@ -1253,6 +1278,18 @@ class App(customtkinter.CTk):
     def on_close(self):
         opts.LOOP = False
         self.destroy()
+
+    def refresh_all(self):
+        self.ai_stuff_frame.textbox_persona.delete("0.0", "end")
+        self.ai_stuff_frame.textbox_persona.insert("0.0", opts.bot_personality)
+        self.ai_stuff_frame.textbox_system_prompt.delete("0.0", "end")
+        self.ai_stuff_frame.textbox_system_prompt.insert("0.0", opts.system_prompt)
+        if self.ai_stuff_frame.manual_entry_window_is_open.get() == True:
+            self.ai_stuff_frame.manual_entry_window.refresh_messages()
+        self.ai_stuff_frame.refresh_radio_buttons()
+        self.program_bools_frame.refresh_checkboxes()
+        self.audio_stuff_frame.refresh_audio_page()
+        self.tts_selector_frame.refresh_panel()
 
 def initialize():
     global app 

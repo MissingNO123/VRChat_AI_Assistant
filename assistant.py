@@ -320,14 +320,14 @@ def handle_command(command):
 
         case 'chatbox':
             opts.chatbox = not opts.chatbox
-            ui.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.refresh_checkboxes()
             print(f'$ Chatbox set to {opts.chatbox}')
             funcs.play_sound(
                 f'./prebaked_tts/Chatboxesarenow{"on" if opts.chatbox else "off"}.wav')
 
         case 'sound':
             opts.sound_feedback = not opts.sound_feedback
-            ui.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.refresh_checkboxes()
             print(f'$ Sound feedback set to {opts.sound_feedback}')
             vrc.chatbox(('🔊' if opts.sound_feedback else '🔈') +
                         ' Sound feedback set to ' + ('on' if opts.sound_feedback else 'off'))
@@ -336,7 +336,7 @@ def handle_command(command):
 
         case 'audiotrigger':
             opts.audio_trigger_enabled = not opts.audio_trigger_enabled
-            ui.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.refresh_checkboxes()
             print(f'$ Audio Trigger set to {opts.audio_trigger_enabled}')
             vrc.chatbox(('🔊' if opts.audio_trigger_enabled else '🔈') +
                         ' Audio Trigger set to ' + ('on' if opts.audio_trigger_enabled else 'off'))
@@ -349,7 +349,7 @@ def handle_command(command):
 
         case 'verbose':
             opts.verbosity = not opts.verbosity
-            ui.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.refresh_checkboxes()
             print(f'$ Verbose logging set to {opts.verbosity}')
             vrc.chatbox('📜 Verbose logging set to ' +
                         ('on' if opts.verbosity else 'off'))
@@ -364,7 +364,7 @@ def handle_command(command):
 
         case 'gpt3':
             opts.gpt = 'GPT-3'
-            ui.app.ai_stuff_frame.update_radio_buttons()
+            ui.app.ai_stuff_frame.refresh_radio_buttons()
             chatgpt.update_base_url()
             print(f'$ Now using {opts.gpt}')
             vrc.chatbox('Now using GPT-3.5-Turbo')
@@ -373,7 +373,7 @@ def handle_command(command):
         case 'gpt4':
             opts.gpt = 'GPT-4'
             chatgpt.update_base_url()
-            ui.app.ai_stuff_frame.update_radio_buttons()
+            ui.app.ai_stuff_frame.refresh_radio_buttons()
             print(f'$ Now using {opts.gpt}')
             vrc.chatbox('Now using GPT-4')
             funcs.play_sound('./prebaked_tts/NowusingGPT4.wav')
@@ -381,13 +381,13 @@ def handle_command(command):
         case 'gptcustom':
             opts.gpt = 'custom'
             chatgpt.update_base_url()
-            ui.app.ai_stuff_frame.update_radio_buttons()
+            ui.app.ai_stuff_frame.refresh_radio_buttons()
             print(f'$ Now using {opts.gpt}')
             vrc.chatbox('Now using Custom GPT model')
 
         case 'parrotmode':
             opts.parrot_mode = not opts.parrot_mode
-            ui.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.refresh_checkboxes()
             print(f'$ Parrot mode set to {opts.parrot_mode}')
             vrc.chatbox(
                 f'🦜 Parrot mode is now {"on" if opts.parrot_mode else "off"}')
@@ -406,16 +406,7 @@ def handle_command(command):
 
         case 'loadconfig':
             opts.load_config()
-            ui.app.ai_stuff_frame.textbox_persona.delete("0.0", "end")
-            ui.app.ai_stuff_frame.textbox_persona.insert("0.0", opts.bot_personality)
-            ui.app.ai_stuff_frame.textbox_system_prompt.delete("0.0", "end")
-            ui.app.ai_stuff_frame.textbox_system_prompt.insert("0.0", opts.system_prompt)
-            if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
-                ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
-            ui.app.ai_stuff_frame.update_radio_buttons()
-            ui.app.program_bools_frame.update_checkboxes()
-            ui.app.audio_stuff_frame.refresh_audio_page()
-            ui.app.tts_selector_frame._set_tts_engine(opts.tts_engine_name)
+            ui.app.refresh_all()
             funcs.play_sound('./prebaked_tts/Configurationloaded.wav')
             vrc.chatbox('📝 Configuration loaded')
 

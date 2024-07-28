@@ -92,7 +92,7 @@ def _get_similarity(query_embedding, db, top_k=top_k) -> List[List[Dict[str, int
 
 def _get_embedding(query):
     device = "cuda" if cuda.is_available() else "cpu"
-    return model.encode(query, convert_to_tensor=True, precision="int8", device=device)
+    return model.encode(query, convert_to_tensor=True, precision="float32", device=device)
 
 
 if __name__ == "__main__":
