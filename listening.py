@@ -80,14 +80,14 @@ def run():
                 phrase_complete = False
                 phrase_time = -1
                 data_queue.queue.clear()
-                time.sleep(0.5)
+                time.sleep(0.1)
                 continue
             # If we're generating or speaking, we shouldn't listen for audio.
             if opts.generating or opts.speaking:
                 phrase_complete = False
                 phrase_time = -1
                 data_queue.queue.clear()
-                time.sleep(0.5)
+                time.sleep(0.1)
                 continue
             now = time.time()
             # Pull raw recorded audio from the queue if it's not empty.
@@ -133,7 +133,7 @@ def run():
                 # If we detected a pause between recordings, add a new item to our transcription.
                 # Otherwise edit the existing one.
                 if phrase_complete:
-                    vrc.chatbox('✏ Processing...')
+                    # vrc.chatbox('✏ Processing...')
                     result = finished_transcription(online, transcription)
                     funcs.v_print(f"\n\nFinal Transcription: \n{result}\n\n")
                     transcription = ''
@@ -141,13 +141,13 @@ def run():
                 if (now - phrase_time) > opts.silence_timeout and not phrase_complete:
                     phrase_complete = True
                     phrase_time = -1
-                    vrc.chatbox('✏ Processing...')
+                    # vrc.chatbox('✏ Processing...')
                     result = finished_transcription(online, transcription)
                     funcs.v_print(f"\n\nFinal Transcription: \n{result}\n\n")
                     transcription = ''
                 else:
                     # Infinite loops are bad for processors, must sleep.
-                    time.sleep(0.1)
+                    time.sleep(0.05)
         except KeyboardInterrupt:
             break
 
