@@ -19,6 +19,7 @@
   "gpt": "custom",
   "custom_model_name": "",
   "custom_api_url": "http://localhost:1234/v1",
+  "gpt_providers": [ ],
   "max_tokens": 200,
   "max_conv_length": 10,
   "temperature": 1.0,

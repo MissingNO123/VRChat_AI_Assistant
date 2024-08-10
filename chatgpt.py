@@ -33,14 +33,11 @@ headers = {
 }
 
 providers = {
-    "order": [
-        "Fireworks", 
-        "OctoAI", 
-        "Novita", 
-        "Together"
-    ],
     "allow_fallbacks": False    
 }
+
+if len(opts.gpt_providers) > 0:
+    providers["order"] = opts.gpt_providers
 
 
 def update_base_url():

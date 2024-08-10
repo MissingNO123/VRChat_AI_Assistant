@@ -38,6 +38,7 @@ out_dev_name = "VoiceMeeter Aux Input"  # Output (tts)
 gpt = "GPT-4"                   # GPT-3 | GPT-4 | custom
 custom_model_name = ""          # Custom model name to use if GPT is set to custom
 custom_api_url = "http://localhost:1234/v1" # Server to use if GPT is set to custom               
+gpt_providers = []              # Providers to use for GPT, in order of preference, if using OpenRouter
 max_tokens = 200                # Max tokens that will try to generate
 max_conv_length = 10            # Max length of conversation buffer
 temperature = 1.5               # Sane values are 0.0 - 1.0 (higher = more random)
@@ -122,6 +123,7 @@ safe_keys = [
     "gpt",
     "custom_model_name",
     "custom_api_url",
+    "gpt_providers",
     "max_tokens",
     "max_conv_length",
     "temperature",
@@ -198,8 +200,7 @@ def load_config():
     global message_array, gcloud_voice_name
     message_array = example_messages.copy()
     gcloud_voice_name = f"{gcloud_language_code}-{gcloud_tts_type}-{gcloud_letter_id}"
+    if len(gpt_providers) > 0:
+        import chatgpt #cursed but it might work
+        chatgpt.providers["order"] = gpt_providers
 
-
-
-if os.path.exists(config_file):
-    load_config()

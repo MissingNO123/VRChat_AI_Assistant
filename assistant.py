@@ -23,8 +23,12 @@ load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
 import options as opts
-import texttospeech as ttsutils
+
+if os.path.exists(opts.config_file):
+    opts.load_config()
+
 import uistuff as ui
+import texttospeech as ttsutils
 import chatgpt
 import vrcutils as vrc
 import functions as funcs
@@ -662,6 +666,7 @@ def start_key_listener():  # (thread target) Starts Keyboard Listener
 
 def start_ui(): # (thread target) Starts GUI
     ui.initialize()
+
 
 whisper_thread = threading.Thread(name='whisper-thread', target=load_whisper)
 serverThread = threading.Thread(
