@@ -414,7 +414,7 @@ class AudioStuffFrame(customtkinter.CTkFrame):
         self.label_silence_timeout = customtkinter.CTkLabel(self, text="Silence Timeout: ", fg_color="transparent")
         self.label_silence_timeout.grid(row=row_id, column=0, sticky="w", pady=(4,1), padx=5)
         row_id += 1
-        self.spinbox_silence_timeout = FloatSpinbox(self, step_size=0.25, min=0, max=30, value=self.silence_timeout.get(), command=self._spinbox_callback)
+        self.spinbox_silence_timeout = FloatSpinbox(self, step_size=0.25, min=0.25, max=30, value=self.silence_timeout.get(), command=self._spinbox_callback)
         self.spinbox_silence_timeout.grid(row=row_id, column=0, columnspan=2, sticky="ew", pady=2, padx=10)
         row_id += 1
 
@@ -466,10 +466,14 @@ class AudioStuffFrame(customtkinter.CTkFrame):
             opts.recording_threshold = int(self.rms_threshold.get())
             ears.recorder.energy_threshold = opts.recording_threshold
             opts.silence_timeout = float(self.silence_timeout.get())
-            ears.recorder.pause_threshold = opts.silence_timeout
             opts.max_recording_time = float(self.max_recording_time.get())
             opts.in_dev_name = self.input_device_name.get()
             opts.out_dev_name = self.output_device_name.get()
+            if opts.silence_timeout > 0.25:
+                ears.recorder.pause_threshold = opts.silence_timeout
+            elif opts.silence_timeout < 0.25:
+                opts.silence_timeout = 0.25
+                ears.recorder.pause_threshold = 0.25
         except ValueError as e:
             print(f"Bad value input to field: {e}")
         except Exception as e:
