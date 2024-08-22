@@ -70,9 +70,9 @@ def load_memory_from_file() -> None:
         global memory
         old_memory = memory.copy()
         try: 
-            memory.clear()
             memory_json = json.load(memory_file_data)
             items = memory_json.get("items", [])
+            memory.clear()
             add_list_to_memory(items)
             # for item in items:
             #     add_to_memory(item)
