@@ -1,56 +1,237 @@
+# options.py (c) 2023 MissingNO123
+# Description: This module contains all the options and settings for the bot. It is used to configure the bot's behavior and settings, as well as handle variables that need to be accessible across modules. The options are loaded from a JSON file on startup, and can be saved back to the file at any time.
+
+import json
+import shutil
+import threading
+import pyaudio
 from pynput.keyboard import Key
+import os
 
-#To be honest this file should've been called variables.py
+#To be honest this file could've been called variables.py
 
-# OPTIONS ####################################################################################################################################
-verbosity = False
-chatbox = True
-parrot_mode = False
-whisper_prompt = "Hello, I am playing VRChat."
-whisper_model = "base.en"
-soundFeedback = True            # Play sound feedback when recording/stopped/misrecognized
-audio_trigger_enabled = False   # Trigger voice recording on volume threshold
+# region OPTIONS 
+# Whisper options
+whisper_prompt = "Hello, I am playing VRChat." # Initializes whisper model with this prompt to better "guide" speech recognition
+whisper_model_size = "medium"                  # tiny | base | small | medium | large | large-v2 
+whisper_task = "transcribe"             # transcribe | translate
+whisper_device = "cuda"                 # cuda | cpu
+# whisper_compute_type = "int8_float16"   # int8 | int8_float16 | float16 | float32
+whisper_compute_type = "int8_float16"   # int8 | int8_float16 | float16 | float32
+whisper_beams = 5                       # Number of beams to use for beam search
+whisper_lock = threading.Lock()
+whisper_model = None
+
+# VRChat options
+vrc_ip = "127.127.127.127"  # IP and Ports for VRChat OSC
+#vrc_ip = "::1"  # IPv6
+vrc_osc_inport = 9000
+vrc_osc_outport = 9001
+vrc_thinking_parameter = {
+    "name": "VRCEmote",
+    "value_on": 5,
+    "value_off": 0
+}
+
+# Program options
+verbosity: bool = False               # Print debug messages to console
+chatbox: bool = True                  # Send messages to VRChat chatbox
+parrot_mode: bool = False             # Echo back user's messages
+sound_feedback: bool = True            # Play sound feedback when recording/stopped/misrecognized
+audio_trigger_enabled: bool = False   # Trigger voice recording on volume threshold
 key_trigger_key = Key.ctrl_r    # What key to double press to trigger recording
 key_press_window = 0.400        # How fast should you double click the key to trigger voice recording
-gpt = "GPT-4"                   # GPT-3.5-Turbo-0301 | GPT-4
-max_tokens = 200                # Max tokens that openai will return
-max_conv_length = 10            # Max length of conversation buffer
+is_speaking_lock = threading.Lock()
+
 in_dev_name = "VoiceMeeter Aux Output"  # Input  (mic)
 out_dev_name = "VoiceMeeter Aux Input"  # Output (tts)
 
+CHUNK_SIZE = 1024           # number of frames read at a time
+FORMAT = pyaudio.paInt16    # PCM format (int16)
+RATE = 16000                # sample rate in Hz
+
+# GPT generation options
+gpt = "GPT-4"                   # GPT-3 | GPT-4 | custom
+custom_model_name = ""          # Custom model name to use if GPT is set to custom
+custom_api_url = "http://localhost:1234/v1" # Server to use if GPT is set to custom               
+gpt_providers = []              # Providers to use for GPT, in order of preference, if using OpenRouter
+max_tokens = 200                # Max tokens that will try to generate
+max_conv_length = 10            # Max length of conversation buffer
+temperature = 1.5               # Sane values are 0.0 - 1.0 (higher = more random)
+frequency_penalty = 1.2
+presence_penalty = 0.5
+top_p = 0.4
+min_p = 0.01
+top_k = 69
+
+# Memory options
+sentence_transformer_model = "sentence-transformers/all-mpnet-base-v2"
+similarity_threshold = 0.5      # Threshold for semantic memory search results to be considered
+memory_top_k = 5                # Number of memory search results to return
+
+# TTS options
 tts_engine = None
 tts_engine_name = "Google Translate"
-tts_engine_selections = ["Windows", "Google Cloud", "Google Translate", "ElevenLabs", "TikTok"]
+tts_engine_selections = ["Windows", "Google Cloud", "Google Translate", "ElevenLabs", "TikTok", "AllTalkTTS"]
 
 windows_tts_voice_id = 0
 
-eleven_voice_id = 'Phillip'
+eleven_voice_id = "Phillip"
 
 tiktok_voice_id = "English US Female"
 
 gtrans_language_code = "en"
 
-gcloud_language_code = 'en-US'
-gcloud_voice_name = f'{gcloud_language_code}-Standard-F'
+gcloud_language_code = "en-US"
+gcloud_tts_type = "Neural2"
+gcloud_letter_id = "F"
+gcloud_voice_name = f"{gcloud_language_code}-{gcloud_tts_type}-{gcloud_letter_id}"
 
-THRESHOLD = 1024            # adjust this to set the minimum volume threshold to start/stop recording
-MAX_RECORDING_TIME = 30     # maximum recording time in seconds
-SILENCE_TIMEOUT = 2         # timeout in seconds for detecting silence
-OUTPUT_FILENAME = 'recording.wav'
+alltalk_selected_voice = ""
+alltalk_selected_rvc_voice = ""
+
+# Speech recognition options
+recording_threshold: float = 10.0    # adjust this to set the minimum volume threshold to start/stop recording
+max_recording_time: float = 30.0     # maximum recording time in seconds
+silence_timeout: float = 2.0         # timeout in seconds for detecting silence
+OUTPUT_FILENAME = "recording.wav"
+
+# System Prompt
+bot_name = ""
+bot_personality = ""
+system_prompt = ""
+
+# endregion
+
+# region Runtime Variables 
 LOOP = True 
 
-message_array = [] # List of messages sent back and forth between ChatGPT / User, can be initialized with example messages
+# State variables
+trigger = False
+speaking = False
+panic = False
+generating = False
+bot_responded = True
 
-# System Prompts ##############################################################################################################################
-# VRChat AI Player System Prompt
-# system_prompt = "You are an Artificial Intelligence in the VR social platform VRChat. Inside the game you take on the appearance of a player that other players can talk to. You can make conversation with people and answer their questions. If someone insults you, you are to dismiss them. Only reply in one sentence if possible."
+message_array = [] # List of messages sent back and forth between AI / User, can be initialized with example messages
+message_queue = [] # Queue of messages to be processed and added to message_array
+example_messages = []
 
-# Assistant System Prompt
-system_prompt = "You are an AI powered voice activated assistant. You are talking to a user. The user will talk directly to you, and you are able to reply back using text to speech. You can answer the user's questions to the best of your knowlege, but if you are unsure about something you must tell them you do not know enough about the subject. You reply in only one sentence if possible."
+# endregion
 
-# Roomba System Prompt
-#system_prompt = "You are an AI powered robot vacuum. You are currently cleaning a user's house. You are able to vacuum their floors, and you are also able to reply to the user using text to speech. You can answer the user's questions to the best of your knowlege, but you must focus on the important task at hand to vacuum floors. You reply in only one sentence if possible."
+# region Config Saving/Loading 
+safe_keys = [
+    "whisper_prompt",
+    "whisper_model_size",
+    "whisper_task",
+    "whisper_device",
+    "whisper_compute_type",
+    "whisper_beams",
 
-# Insult system prompt
-# system_prompt = "You are an AI powered voice activated insult machine named BratGPT. The user will talk directly to you, and you insult them no matter what they say. You only ever insult them, and do not say anything else. You talk like a catgirl with a hostile and condescending demeanor. You reply in only one sentence if possible."
+    "vrc_ip",
+    "vrc_osc_inport",
+    "vrc_osc_outport",
 
+    "verbosity",
+    "chatbox",
+    "parrot_mode",
+    "sound_feedback",
+    "audio_trigger_enabled",
+    "key_trigger_key",
+    "key_press_window",
+
+    "in_dev_name",
+    "out_dev_name",
+
+    "gpt",
+    "custom_model_name",
+    "custom_api_url",
+    "gpt_providers",
+    "max_tokens",
+    "max_conv_length",
+    "temperature",
+    "frequency_penalty",
+    "presence_penalty",
+    "top_p",
+    "min_p",
+    "top_k",
+
+    "sentence_transformer_model",
+    "similarity_threshold",
+    "memory_top_k",
+
+    "tts_engine_name",
+    "windows_tts_voice_id",
+    "eleven_voice_id",
+    "tiktok_voice_id",
+    "gtrans_language_code",
+    "gcloud_language_code",
+    "gcloud_tts_type",
+    "gcloud_letter_id",
+
+    "alltalk_selected_voice",
+    "alltalk_selected_rvc_voice",
+
+    "recording_threshold",
+    "max_recording_time",
+    "silence_timeout",
+
+    "bot_name",
+    "bot_personality",
+    "system_prompt",
+    "example_messages"
+]
+
+config_file = os.path.join(os.path.dirname(__file__), "config.json")
+config_example = os.path.join(os.path.dirname(__file__), "config.example.json")
+if not os.path.exists(config_file):
+    if os.path.exists(config_example):
+        shutil.copy(config_example, config_file)
+
+def save_config():
+    with open(config_file, 'w', encoding='utf8') as config:
+        config_data = {k: v for k,v in globals().items() if k in safe_keys}
+        trigger_key = str(config_data["key_trigger_key"])
+        trigger_key = trigger_key[trigger_key.find(".")+1:]
+        config_data["key_trigger_key"] = trigger_key
+        json.dump(config_data, config, indent=2)
+
+def load_config():
+    with open (config_file, 'r', encoding='utf8') as config:
+        config_data = json.load(config)
+        for key, value in config_data.items():
+            if key == "safe_keys":
+                print( f'!! Detected attempt to override safe keys, not loading' )
+                continue
+            if key in safe_keys:
+                if key in globals():
+                    if not type(value) == type(globals()[key]):
+                        if key == "key_trigger_key":
+                            try:
+                                trigger_key = getattr(Key, value)
+                                value = trigger_key
+                            except AttributeError:
+                                print( f'!! { key } invalid trigger key, not loading' )
+                                continue   
+                        else:
+                            print( f'!! { key } has wrong type in config file, not loading' )
+                            continue
+                    else:
+                        globals()[key] = value
+                else:
+                    print( f'!! "{key}" correlates to setting but somehow isn\'t present in module, not loading' )
+            else:
+                print( f'!! "{key}" found in config file doesn\'t correlate to a setting' )
+    
+    global message_array, gcloud_voice_name
+    message_array = example_messages.copy()
+    gcloud_voice_name = f"{gcloud_language_code}-{gcloud_tts_type}-{gcloud_letter_id}"
+    if len(gpt_providers) > 0:
+        import chatgpt #cursed but it might work
+        chatgpt.providers["order"] = gpt_providers
+    
+    import embeddings as emb
+    emb.load_memory_from_file()
+    emb.load_knowledge_from_file()
+
+# endregion

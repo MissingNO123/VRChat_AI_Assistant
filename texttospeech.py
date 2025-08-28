@@ -1,3 +1,6 @@
+# texttospeech.py (c) 2023 MissingNO123
+# Description: This module contains the text-to-speech functions for the bot. It provides functions for converting text to speech using various TTS engines. The module also contains utility functions for filtering text input to make it more pronouncable by TTS engines, as well as converting audio files between different formats.
+
 import time
 import os
 import re
@@ -12,8 +15,10 @@ import pyttsx3
 import ffmpeg
 import options as opts
 from dotenv import load_dotenv
+import re
 load_dotenv()
 
+empty_audio = BytesIO(b"\x52\x49\x46\x46\x52\x49\x00\x00\x57\x41\x56\x45\x66\x6d\x74\x20\x10\x00\x00\x00\x01\x00\x01\x00\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00\x64\x61\x74\x61\x00\x00\x00\x00")
 
 def verbose_print(text):
     if opts.verbosity:
@@ -32,25 +37,33 @@ def to_wav_bytes(file, speed=1.0):
         end_time = time.perf_counter()
         verbose_print(f'--ffmpeg to_wav took {end_time - start_time:.3f}s')
         return BytesIO(stdout)
-    except ffmpeg.Error as e:
-        raise RuntimeError(f"Failed to convert audio: {e.stderr.decode()}") from e
- 
+    except Exception as e:
+        raise RuntimeError(f"Failed to convert audio: {e}") from e
 
-def filter(string):
+
+def filter(string) -> str:
     """ Makes words in input string pronuncable by TTS """
-    replacements = {
-        '`': '',
-        '💬': '',
-        '~': '',
-        '*': '',
-        'missingno': 'missing no',
-        'missingo123': 'missing no one two three',
-        'vrchat': 'VR Chat',
-        'nya': 'nyaah'
-    }
-    for word, replacement in replacements.items():
-        word_pattern = re.escape(word)
-        string = re.sub(word_pattern, replacement, string, flags=re.IGNORECASE)
+    flags = re.UNICODE | re.IGNORECASE
+    replacements = [
+        (re.escape('```'), 'code: '),
+        (re.escape('`'), ''),
+        (re.escape('~'), ''),
+        (re.escape('missingno'), 'missing no'),
+        (re.escape('missingo123'), 'missing no one two three'),
+        (re.escape('vrchat'), 'VR Chat'),
+        (re.escape('nya'), 'nyaa'),
+        (re.compile("\bai\b", flags=flags), 'AI'), # capitalize AI
+        (re.compile("[\U0001F000-\U0001FFFF]+", flags=flags), ''), # remove emoji
+        (re.compile("\b[:;=x]-?[)DPO\(3c/]+", flags=flags), ''), # remove emoticons
+        (re.compile("\*[a-zA-Z0-9.,?\\/\(\)!\s]+\*", flags=flags), ''), # remove *action* text, but keep the pause
+        (re.escape('*'), ''), # remove asterisks (needs to be done after previous step)
+        # '💬': '',
+        # '🤖':'',
+    ]
+    
+    for pattern, replacement in replacements:
+        string = re.sub(pattern, replacement, string)
+    
     return string
 
 
@@ -60,10 +73,11 @@ class WindowsTTS():
         self.rate = 180
         self.ttsEngine.setProperty('rate', self.rate)
         self.voices = self.ttsEngine.getProperty('voices')
-        self.ttsEngine.setProperty('voice', self.voices[opts.windows_tts_voice_id].id) #eva mobile
+        self.ttsEngine.setProperty('voice', self.voices[opts.windows_tts_voice_id].id)
    
     def tts(self, text):
         """ Returns speech from text using Windows API """
+        if text == '': return empty_audio
         audio = BytesIO()
         self.ttsEngine.save_to_file(filter(text), 'tts.wav')
         self.ttsEngine.runAndWait()
@@ -87,6 +101,7 @@ class GoogleTranslateTTS():
 
     def tts(self, text):
         """ Returns speech from text using Google Translate API """
+        if text == '': return empty_audio
         start_time = time.time()
         filtered_text = filter(text)
         output = BytesIO()
@@ -106,11 +121,13 @@ class GoogleTranslateTTS():
 class GoogleCloudTTS():
     def __init__(self, language_code=opts.gcloud_language_code, name=opts.gcloud_voice_name):
         try:
+            self.pitch = 0.0
+            self.speaking_rate = 1.0
             self.client = texttospeech.TextToSpeechClient()
             self.audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-                speaking_rate=1.15,
-                pitch=-1.0
+                speaking_rate=self.speaking_rate,
+                pitch=self.pitch
             )
             self.ready = True
         except Exception as e:
@@ -122,6 +139,7 @@ class GoogleCloudTTS():
         if not self.ready:
             print("Google Cloud TTS engine is not ready!")
             return None
+        if text == '': return empty_audio
         start_time = time.perf_counter()
         filtered_text = filter(text)
         input_text = texttospeech.SynthesisInput(text=filtered_text)
@@ -145,6 +163,14 @@ class GoogleCloudTTS():
         verbose_print(f'--google cloud took {end_time - start_time:.3f}s')
         return output
 
+    def update_pitch(self, newPitch):
+        self.pitch = newPitch
+        self.audio_config.pitch = newPitch
+
+    def update_speaking_rate(self, newRate):
+        self.speaking_rate = newRate
+        self.audio_config.speaking_rate = newRate
+
 
 class TikTokTTS():
     def __init__(self, voice_id = None):
@@ -154,6 +180,7 @@ class TikTokTTS():
         self.rate_limit = 9999
 
     def tts(self, text):
+        if text == '': return empty_audio
         request = self._request(
             "POST",
             {
@@ -221,19 +248,24 @@ class ElevenTTS(ElevenLabs):
         if not self.ready:
             print("ElevenLabs TTS engine is not ready!")
             return None
+        if text == '': return empty_audio
         verbose_print('--Getting TTS from 11.ai...')
         start_time = time.perf_counter()
         if self.selected_voice is None:
             return None
 
-        request = self._request(
-            "POST",
-            "text-to-speech/%s" % self.selected_voice.id,
-            {
-                "text": filter(text),
-                "voice_settings": self.voice_settings
-            }
-        )
+        try:
+            request = self._request(
+                "POST",
+                "text-to-speech/%s" % self.selected_voice.id,
+                {
+                    "text": filter(text),
+                    "voice_settings": self.voice_settings
+                }
+            )
+        except Exception as e:
+            print(f"Failed to make request: {e}")
+            return None
 
         file = BytesIO()
         file.write(request.content)
@@ -249,6 +281,126 @@ class ElevenTTS(ElevenLabs):
 
 
 eleven = ElevenTTS(api_key=os.getenv('ELEVENLABS_API_KEY'), voice=opts.eleven_voice_id)
+
+class AllTalkTTS():
+    def __init__(self):
+        self.ip = "127.0.0.1"
+        self.port = 7851
+        self.base_api_url = f"http://{self.ip}:{self.port}"
+        self.voices = []
+        self.rvc_voices = []
+        self.speed = 1.0
+        self.rvc_pitch = 0
+        self.selected_voice = None
+        self.selected_rvc_voice = None
+
+        self.ready = False
+        # try to ping /api/ready
+        try:
+            response = requests.get(self.base_api_url + "/api/ready")
+            response.raise_for_status()
+            self.ready = True
+            self._initialize()
+        except requests.RequestException as e:
+            print(f"Failed to connect to AllTalk API: {e}")
+            self.ready = False
+        except Exception as e:
+            print(f"Failed to load AllTalk TTS engine: {e}")
+            self.ready = False
+
+    def _make_request(self, endpoint, params) -> requests.Response | None:
+        try:
+            response = requests.get(f'{self.base_api_url}{endpoint}', params=params)
+            response.raise_for_status()
+            return response
+        except requests.RequestException as e:
+            print(f"Failed to make request to AllTalk API: {e}")
+            return None
+
+    def _make_post_request(self, endpoint, params) -> requests.Response | None:
+        try:
+            response = requests.post(f'{self.base_api_url}{endpoint}', data=params)
+            response.raise_for_status()
+            return response
+        except requests.RequestException as e:
+            print(f"Failed to make request to AllTalk API: {e}")
+            return None
+        
+    def _initialize(self) -> None:
+        try:
+            self._fetch_voices()
+            self._fetch_rvc_voices()
+        except Exception as e:
+            print(f"Failed to initialize AllTalk TTS engine: {e}")
+            self.ready = False
+ 
+    def _fetch_voices(self) -> None:
+        try:
+            response = self._make_request("/api/voices", {})
+            if response is None:
+                return
+            data = response.json()
+            self.voices = data.get('voices', [])
+        except Exception as e:
+            print(f"Failed to fetch voices from AllTalk API: {e}")
+            self.voices = []
+    
+    def _fetch_rvc_voices(self) -> None:
+        try:
+            response = self._make_request("/api/rvcvoices", {})
+            if response is None:
+                return
+            data = response.json()
+            self.rvc_voices = data.get('rvcvoices', [])
+        except Exception as e:
+            print(f"Failed to fetch RVC voices from AllTalk API: {e}")
+            self.rvc_voices = []
+    
+    def set_voice(self, voice_id) -> None:
+        self.selected_voice = voice_id
+
+    def set_rvc_voice(self, voice_id) -> None:
+        self.selected_rvc_voice = voice_id
+    
+    def set_rvc_pitch(self, pitch) -> None:
+        self.rvc_pitch = pitch
+
+    def set_speed(self, speed) -> None:
+        self.speed = speed
+
+    def tts(self, text) -> BytesIO | None:
+        if not self.ready:
+            print("AllTalk TTS engine is not ready!")
+            return None
+        if text == '': return empty_audio
+        params = {
+            "text_input": text,
+            "text_filtering": "standard",
+            "character_voice_gen": self.selected_voice,
+            "rvccharacter_voice_gen": self.selected_rvc_voice,
+            "rvccharacter_pitch": self.rvc_pitch,
+            "narrator_enabled": "false",
+            "language": "en",
+            "speed": self.speed
+        }
+        try:
+            response = self._make_post_request("/api/tts-generate", params)
+            if response is None:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            output_file_relative_url = data.get("output_file_url")
+            output_file_url = self.base_api_url + output_file_relative_url
+            response = requests.get(output_file_url)
+            if response is None:
+                return None
+            response.raise_for_status()
+            file = BytesIO(response.content)
+            return file
+        except requests.RequestException as e:
+            print(f"Failed to generate TTS from AllTalk API: {e}")
+            return None
+
 
 tiktok_voice_list = {
     "English US Female":  "en_us_001",
