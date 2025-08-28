@@ -22,3 +22,5 @@ knowledge.json
 screenshot.png
 *.example
 *.example.*
+requirements.txt
+requirements*.txt
