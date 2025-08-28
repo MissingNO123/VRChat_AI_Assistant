@@ -1,0 +1,26 @@
+openai==0.28
+gtts
+pyaudio
+python-osc
+elevenlabs==0.1.1
+python-dotenv
+openai-whisper
+faster-whisper
+ffmpeg-python
+google-cloud-texttospeech
+pynput
+pyttsx3
+customtkinter
+SpeechRecognition
+librosa
+soundfile
+psutil
+ultralytics==8.1.47
+opencv-python==4.7.0.72
+huggingface-hub
+bshot==1.0.4
+# audioop
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch==2.2.1
+transformers
+numpy
