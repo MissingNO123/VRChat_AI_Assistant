@@ -14,3 +14,11 @@ Speech Off.wav
 Speech On.wav
 Speech Sleep.wav
 prompts.txt
+config.json
+config.backup.json
+memory.json
+badwords.json
+knowledge.json
+screenshot.png
+*.example
+*.example.*
