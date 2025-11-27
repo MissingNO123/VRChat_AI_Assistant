@@ -1,40 +1,48 @@
 # Copyright (C) MissingNO123 17 Mar 2023
+# Description: Main program for the VRChat AI Assistant
 
+import os
 from io import BytesIO
 import sys
 import time
 full_start_time = time.perf_counter()
-import audioop
+# import audioop
 from datetime import datetime
-from dotenv import load_dotenv
 # import whisper
 from faster_whisper import WhisperModel
 import ffmpeg
-import openai
-import os
+import openai #0.28.0
 import pyaudio
 from pynput.keyboard import Listener
 import re
 import threading
 import wave
 
-import options as opts
-import texttospeech as ttsutils
-import uistuff as ui
-import chatgpt
-import vrcutils as vrc
-import functions as funcs
-
+from dotenv import load_dotenv
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
-# OPTIONS ####################################################################################################################################
+import options as opts
+
+if os.path.exists(opts.config_file):
+    opts.load_config()
+
+import uistuff as ui
+import texttospeech as ttsutils
+import chatgpt
+import vrcutils as vrc
+import functions as funcs
+import listening
+import vision as eyes
+import embeddings as emb
+
+if not opts.verbosity:
+    os.system('cls' if os.name=='nt' else 'clear')
+
+# region Variables 
 CHUNK_SIZE = 1024           # number of frames read at a time
 FORMAT = pyaudio.paInt16    # PCM format (int16)
 RATE = 48000                # sample rate in Hz
-
-# Variables ###################################################################################################################################
-model = None    # Whisper model object
 
 vb_out = None
 vb_in = None
@@ -58,193 +66,184 @@ opts.tts_engine = ttsutils.GoogleTranslateTTS()
 # Constants
 pyAudio = pyaudio.PyAudio()
 
-speech_on = "Speech On.wav"
-speech_off = "Speech Sleep.wav"
-speech_mis = "Speech Misrecognition.wav"
-
 ip = "127.0.0.1"  # IP and Ports for VRChat OSC
 inPort = 9000
 outPort = 9001
 
 opts.LOOP = True
 
-whisper_lock = threading.Lock()
+
+# endregion
+
+# region Removed Functions
+# def save_recorded_frames(frames):
+#     """ Saves recorded frames to a .wav file and sends it to whisper to transcribe it """
+#     if opts.sound_feedback:
+#         funcs.play_sound_threaded(funcs.speech_off)
+#     recording = BytesIO()
+#     wf = wave.open(recording, 'wb')
+#     wf.setnchannels(2)
+#     wf.setsampwidth(pyAudio.get_sample_size(FORMAT))
+#     wf.setframerate(RATE)
+#     wf.writeframes(b''.join(frames))
+#     wf.close()
+#     recording.seek(0)
+#     # return recording
+#     # transcription = openai_whisper_transcribe(recording) # uncomment for Slower Whisper
+#     transcription = faster_whisper_transcribe(recording)
+#     if transcription is not None:
+#         if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
+#             ui.app.ai_stuff_frame.manual_entry_window.addtext("\n---\nUser: " + transcription)
+#         if opts.parrot_mode:
+#             text = transcription
+#         else: 
+#             funcs.append_user_message(transcription)
+#             text = chatgpt.generate(transcription)
+#         if text is None: 
+#             funcs.v_print("!!No text returned from LLM")
+#         else:
+#             if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
+#                 ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
+#                 ui.app.ai_stuff_frame.manual_entry_window.button_send.configure(text="Send", state="normal")
+#                 ui.app.ai_stuff_frame.manual_entry_window.textfield_text_entry.configure(state="normal")
+#             if opts.chatbox and len(text) > 140:
+#                 funcs.cut_up_text(text)
+#             else:
+#                 if opts.parrot_mode:
+#                     e_text = '💬 ' + text
+#                 else:
+#                     e_text = '🤖 ' + text
+#                 vrc.chatbox(f'{e_text}')
+#                 if len(text): funcs.tts(e_text)
+#         vrc.set_parameter('VoiceRec_End', True)
+#         vrc.set_parameter('CGPT_Result', True)
+#         vrc.set_parameter('CGPT_End', True)
 
 
-# Functions ###################################################################################################################################
-
-def v_print(text):
-    if opts.verbosity:
-        print(text)
-
-
-def save_recorded_frames(frames):
-    """ Saves recorded frames to a .wav file and sends it to whisper to transcribe it """
-    if opts.soundFeedback:
-        funcs.play_sound_threaded(speech_off)
-    recording = BytesIO()
-    wf = wave.open(recording, 'wb')
-    wf.setnchannels(2)
-    wf.setsampwidth(pyAudio.get_sample_size(FORMAT))
-    wf.setframerate(RATE)
-    wf.writeframes(b''.join(frames))
-    wf.close()
-    recording.seek(0)
-    # return recording
-    # transcription = openai_whisper_transcribe(recording) # uncomment for Slower Whisper
-    transcription = faster_whisper_transcribe(recording)
-    if transcription is not None:
-        if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
-            ui.app.ai_stuff_frame.manual_entry_window.addtext("\n---\nUser: " + transcription)
-        if opts.parrot_mode:
-            text = transcription
-        else: 
-            text = chatgpt.generate(transcription)
-        if text is None: 
-            funcs.v_print("!!No text returned from ChatGPT")
-        else:
-            if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
-                ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
-                ui.app.ai_stuff_frame.manual_entry_window.button_send.configure(text="Send", state="normal")
-                ui.app.ai_stuff_frame.manual_entry_window.textfield_text_entry.configure(state="normal")
-            if opts.chatbox and len(text) > 140:
-                funcs.cut_up_text(text)
-            else:
-                if opts.parrot_mode:
-                    text = '💬 ' + text
-                else:
-                    text = '🤖 ' + text
-                vrc.chatbox(f'{text}')
-                funcs.tts(text)
-        vrc.set_parameter('VoiceRec_End', True)
-        vrc.set_parameter('CGPT_Result', True)
-        vrc.set_parameter('CGPT_End', True)
+# def ffmpeg_for_whisper(file):
+#     import numpy as np
+#     start_time = time.perf_counter()
+#     file.seek(0)
+#     try:
+#         out, _ = (
+#             ffmpeg.input('pipe:', loglevel='quiet', threads=0)
+#             .output("-", format="s16le", acodec="pcm_s16le", ac=1, ar=16000)
+#             .run(cmd=["ffmpeg", "-nostdin"], input=file.read(), capture_stdout=True, capture_stderr=True)
+#         )
+#     except ffmpeg.Error as e:
+#         raise RuntimeError(f"Failed to load audio: {e.stderr.decode()}") from e
+#     data = np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
+#     end_time = time.perf_counter()
+#     funcs.v_print(f"--FFMPEG for Whisper took: {end_time - start_time:.3f}s")
+#     return data
 
 
-def ffmpeg_for_whisper(file):
-    import numpy as np
-    start_time = time.perf_counter()
-    file.seek(0)
-    try:
-        out, _ = (
-            ffmpeg.input('pipe:', loglevel='quiet', threads=0)
-            .output("-", format="s16le", acodec="pcm_s16le", ac=1, ar=16000)
-            .run(cmd=["ffmpeg", "-nostdin"], input=file.read(), capture_stdout=True, capture_stderr=True)
-        )
-    except ffmpeg.Error as e:
-        raise RuntimeError(f"Failed to load audio: {e.stderr.decode()}") from e
-    data = np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
-    end_time = time.perf_counter()
-    funcs.v_print(f"--FFMPEG for Whisper took: {end_time - start_time:.3f}s")
-    return data
-
-
-def openai_whisper_transcribe(recording):
-    """ Transcribes audio in .wav file to text """
-    import whisper
+# def openai_whisper_transcribe(recording):
+#     """ Transcribes audio in .wav file to text """
+#     import whisper
     
-    if model is None: return
-    vrc.chatbox('✍️ Transcribing...')
-    funcs.v_print('~Transcribing...')
-    start_time = time.perf_counter()
+#     if opts.whisper_model is None: return
+#     vrc.chatbox('✍️ Transcribing...')
+#     funcs.v_print('~Transcribing...')
+#     start_time = time.perf_counter()
     
-    audio = ffmpeg_for_whisper(recording)
-    audio = whisper.pad_or_trim(audio)
-    mel = whisper.log_mel_spectrogram(audio).to(model.device)
+#     audio = ffmpeg_for_whisper(recording)
+#     audio = whisper.pad_or_trim(audio)
+#     mel = whisper.log_mel_spectrogram(audio).to(opts.whisper_model.device)
 
-    # decode the audio
-    options = whisper.DecodingOptions(prompt=opts.whisper_prompt, language='en')
-    result = whisper.decode(model, mel, options)
-    end_time = time.perf_counter()
-    funcs.v_print(f"--Transcription took: {end_time - start_time:.3f}s, U: {result.no_speech_prob*100:.1f}%")
+#     # decode the audio
+#     options = whisper.DecodingOptions(prompt=opts.whisper_prompt, language='en')
+#     result = whisper.decode(opts.whisper_model, mel, options)
+#     end_time = time.perf_counter()
+#     funcs.v_print(f"--Transcription took: {end_time - start_time:.3f}s, U: {result.no_speech_prob*100:.1f}%")
 
-    # print the recognized text
-    print(f"\n>User: {result.text}")
+#     # print the recognized text
+#     print(f"\n>User: {result.text}")
 
-    # if not speech, dont send to cgpt
-    if result.no_speech_prob > 0.5:
-        vrc.chatbox('⚠ [unintelligible]')
-        if opts.soundFeedback: funcs.play_sound_threaded(speech_mis)
-        funcs.v_print(f"U: {result.no_speech_prob*100:.1f}%")
-        # tts('I didn\'t understand that!', 'en')
-        funcs.play_sound('./prebaked_tts/Ididntunderstandthat.wav')
-        vrc.clear_prop_params()
+#     # if not speech, dont send to cgpt
+#     if result.no_speech_prob > 0.5:
+#         vrc.chatbox('⚠ [unintelligible]')
+#         if opts.sound_feedback: funcs.play_sound_threaded(funcs.speech_mis)
+#         funcs.v_print(f"U: {result.no_speech_prob*100:.1f}%")
+#         # tts('I didn\'t understand that!', 'en')
+#         funcs.play_sound('./prebaked_tts/Ididntunderstandthat.wav')
+#         vrc.clear_prop_params()
 
-        return None
-    else:
-        # otherwise, forward text to ChatGPT
-        vrc.set_parameter('VoiceRec_End', True)
-        return result.text
-        # chatgpt_req(result.text)
+#         return None
+#     else:
+#         # otherwise, forward text to LLM
+#         vrc.set_parameter('VoiceRec_End', True)
+#         return result.text
+#         # chatgpt_req(result.text)
 
 
-def faster_whisper_transcribe(recording):
-    """ Transcribes audio in .wav file to text using Faster Whisper """
-    if model is None:
-        return None
-    if opts.whisper_task == 'transcribe':
-        vrc.chatbox('✍️ Transcribing...')
-        funcs.v_print('~Transcribing...')
-    elif opts.whisper_task == 'translate': 
-        vrc.chatbox('[あ>A] Translating...')
-        funcs.v_print('~Translating...')
+# def faster_whisper_transcribe(recording):
+#     """ Transcribes audio in .wav file to text using Faster Whisper """
+#     if opts.whisper_model is None:
+#         return None
+#     if opts.whisper_task == 'transcribe':
+#         vrc.chatbox('✍️ Transcribing...')
+#         funcs.v_print('~Transcribing...')
+#     elif opts.whisper_task == 'translate': 
+#         vrc.chatbox('[あ>A] Translating...')
+#         funcs.v_print('~Translating...')
 
-    with whisper_lock:
-        start_time = time.perf_counter()
-        # audio = ffmpeg_for_whisper(recording) # This adds 500ms of latency with no apparent benefit 
-        # Initialize transcription object on the recording
-        segments, info = model.transcribe(
-            recording, task=opts.whisper_task, beam_size=5, initial_prompt=opts.whisper_prompt, no_speech_threshold=0.4, log_prob_threshold=0.8)
+#     with opts.whisper_lock:
+#         start_time = time.perf_counter()
+#         # audio = ffmpeg_for_whisper(recording) # This adds 500ms of latency with no apparent benefit 
+#         # Initialize transcription object on the recording
+#         segments, info = opts.whisper_model.transcribe(
+#             recording, task=opts.whisper_task, beam_size=5, initial_prompt=opts.whisper_prompt, no_speech_threshold=0.4, log_prob_threshold=0.8)
 
-        funcs.v_print(f'lang: {info.language}, {info.language_probability * 100:.1f}%')
+#         funcs.v_print(f'lang: {info.language}, {info.language_probability * 100:.1f}%')
 
-        # if too short, skip
-        if info.duration <= (opts.SILENCE_TIMEOUT + 0.1):
-            vrc.chatbox('⚠ [nothing heard]')
-            if opts.soundFeedback:
-                funcs.play_sound_threaded(speech_mis)
-            vrc.clear_prop_params()
-            return None
+#         # if too short, skip
+#         if info.duration <= (opts.silence_timeout + 0.1):
+#             vrc.chatbox('⚠ [nothing heard]')
+#             if opts.sound_feedback:
+#                 funcs.play_sound_threaded(funcs.speech_mis)
+#             vrc.clear_prop_params()
+#             return None
 
-        # if not recognized as speech, dont bother processing anything  
-        if info.language_probability < 0.6:
-            vrc.chatbox('⚠ [unintelligible]')
-            if opts.soundFeedback:
-                funcs.play_sound_threaded(speech_mis)
-                funcs.play_sound('./prebaked_tts/Ididntunderstandthat.wav')
-            vrc.clear_prop_params()
-            end_time = time.perf_counter()
-            funcs.v_print(f"--Transcription failed and took: {end_time - start_time:.3f}s")
-            return None
+#         # if not recognized as speech, dont bother processing anything  
+#         if info.language_probability < 0.6:
+#             vrc.chatbox('⚠ [unintelligible]')
+#             if opts.sound_feedback:
+#                 funcs.play_sound_threaded(funcs.speech_mis)
+#                 funcs.play_sound('./prebaked_tts/Ididntunderstandthat.wav')
+#             vrc.clear_prop_params()
+#             end_time = time.perf_counter()
+#             funcs.v_print(f"--Transcription failed and took: {end_time - start_time:.3f}s")
+#             return None
 
-        # Transcribe and concatenate the text segments
-        text = ""
-        for segment in segments:
-            text += segment.text
-        text = text.strip()
+#         # Transcribe and concatenate the text segments
+#         text = ""
+#         for segment in segments:
+#             text += segment.text
+#         text = text.strip()
 
-        end_time = time.perf_counter()
-    funcs.v_print(f"--Transcription took: {end_time - start_time:.3f}s")
+#         end_time = time.perf_counter()
+#     funcs.v_print(f"--Transcription took: {end_time - start_time:.3f}s")
 
-    if text == "":
-        print ("\n>User: <Nothing was recognized>")
-        vrc.clear_prop_params()
-        return None
+#     if text == "":
+#         print ("\n>User: <Nothing was recognized>")
+#         vrc.clear_prop_params()
+#         return None
 
-    # print the recognized text
-    print(f"\n>User: {text}")
+#     # print the recognized text
+#     print(f"\n>User: {text}")
 
-    # if keyword detected, send to command handler instead
-    if text.lower().startswith("system"):
-        command = re.sub(r'[^a-zA-Z0-9]', '', text[text.find(' ') + 1:])
-        handle_command(command.lower())
-        vrc.clear_prop_params()
-        return None
+#     # if keyword detected, send to command handler instead
+#     if text.lower().startswith("system"):
+#         handle_command(text.lower())
+#         vrc.clear_prop_params()
+#         return None
     
-    # otherwise, return the recognized text
-    else:
-        vrc.set_parameter('VoiceRec_End', True)
-        return text
+#     # otherwise, return the recognized text
+#     else:
+#         vrc.set_parameter('VoiceRec_End', True)
+#         # return text
+#         return funcs.inverse_title_case(text)
 
 
 # def chatgpt_req(text):
@@ -280,7 +279,7 @@ def faster_whisper_transcribe(recording):
 #         funcs.v_print(f'--OpenAI API took {end_time - start_time:.3f}s')
 #         result = completion.choices[0].message.content
 #         opts.message_array.append({"role": "assistant", "content": result})
-#         print(f"\n>ChatGPT: {result}")
+#         print(f"\n>AI: {result}")
 #         return result
 #     except openai.APIError as e:
 #         err = e
@@ -303,36 +302,47 @@ def faster_whisper_transcribe(recording):
 #         vrc.set_parameter('CGPT_Result', True)
 #         vrc.set_parameter('CGPT_End', True)
 #         return None
+# endregion
 
+# region Functions 
+
+def v_print(text):
+    if opts.verbosity:
+        print(text)
 
 def handle_command(command):
     """ Handle voice commands """
+    original_command = command
+    if ':' in command:
+        command = command.split(':')[0]
+    command = re.sub(r'[^a-zA-Z0-9]', '', command[command.find(' ') + 1:])
     match command:
         case 'reset':
             opts.message_array = []
+            opts.message_array = opts.example_messages.copy()
             print(f'$ Messages cleared!')
             vrc.chatbox('🗑️ Cleared message buffer')
             funcs.play_sound('./prebaked_tts/Clearedmessagebuffer.wav')
 
         case 'chatbox':
             opts.chatbox = not opts.chatbox
-            ui.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.refresh_checkboxes()
             print(f'$ Chatbox set to {opts.chatbox}')
             funcs.play_sound(
                 f'./prebaked_tts/Chatboxesarenow{"on" if opts.chatbox else "off"}.wav')
 
         case 'sound':
-            opts.soundFeedback = not opts.soundFeedback
-            ui.app.program_bools_frame.update_checkboxes()
-            print(f'$ Sound feedback set to {opts.soundFeedback}')
-            vrc.chatbox(('🔊' if opts.soundFeedback else '🔈') +
-                        ' Sound feedback set to ' + ('on' if opts.soundFeedback else 'off'))
+            opts.sound_feedback = not opts.sound_feedback
+            ui.app.program_bools_frame.refresh_checkboxes()
+            print(f'$ Sound feedback set to {opts.sound_feedback}')
+            vrc.chatbox(('🔊' if opts.sound_feedback else '🔈') +
+                        ' Sound feedback set to ' + ('on' if opts.sound_feedback else 'off'))
             funcs.play_sound(
-                f'./prebaked_tts/Soundfeedbackisnow{"on" if opts.soundFeedback else "off"}.wav')
+                f'./prebaked_tts/Soundfeedbackisnow{"on" if opts.sound_feedback else "off"}.wav')
 
         case 'audiotrigger':
             opts.audio_trigger_enabled = not opts.audio_trigger_enabled
-            ui.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.refresh_checkboxes()
             print(f'$ Audio Trigger set to {opts.audio_trigger_enabled}')
             vrc.chatbox(('🔊' if opts.audio_trigger_enabled else '🔈') +
                         ' Audio Trigger set to ' + ('on' if opts.audio_trigger_enabled else 'off'))
@@ -345,7 +355,7 @@ def handle_command(command):
 
         case 'verbose':
             opts.verbosity = not opts.verbosity
-            ui.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.refresh_checkboxes()
             print(f'$ Verbose logging set to {opts.verbosity}')
             vrc.chatbox('📜 Verbose logging set to ' +
                         ('on' if opts.verbosity else 'off'))
@@ -360,26 +370,51 @@ def handle_command(command):
 
         case 'gpt3':
             opts.gpt = 'GPT-3'
-            ui.app.ai_stuff_frame.update_radio_buttons()
+            ui.app.ai_stuff_frame.refresh_radio_buttons()
+            chatgpt.update_base_url()
             print(f'$ Now using {opts.gpt}')
             vrc.chatbox('Now using GPT-3.5-Turbo')
             funcs.play_sound('./prebaked_tts/NowusingGPT35Turbo.wav')
 
         case 'gpt4':
             opts.gpt = 'GPT-4'
-            ui.app.ai_stuff_frame.update_radio_buttons()
+            chatgpt.update_base_url()
+            ui.app.ai_stuff_frame.refresh_radio_buttons()
             print(f'$ Now using {opts.gpt}')
             vrc.chatbox('Now using GPT-4')
             funcs.play_sound('./prebaked_tts/NowusingGPT4.wav')
+        
+        case 'gptcustom':
+            opts.gpt = 'custom'
+            chatgpt.update_base_url()
+            ui.app.ai_stuff_frame.refresh_radio_buttons()
+            print(f'$ Now using {opts.gpt}')
+            vrc.chatbox('Now using Custom GPT model')
 
         case 'parrotmode':
             opts.parrot_mode = not opts.parrot_mode
-            ui.app.program_bools_frame.update_checkboxes()
+            ui.app.program_bools_frame.refresh_checkboxes()
             print(f'$ Parrot mode set to {opts.parrot_mode}')
             vrc.chatbox(
                 f'🦜 Parrot mode is now {"on" if opts.parrot_mode else "off"}')
             funcs.play_sound(
                 f'./prebaked_tts/Parrotmodeisnow{"on" if opts.parrot_mode else "off"}.wav')
+            
+        case 'reloadmemory':
+            emb.load_memory_from_file()
+            funcs.play_sound('./prebaked_tts/Memoryreloaded.wav')
+            vrc.chatbox('🧠 Memory reloaded')
+
+        case 'saveconfig':
+            opts.save_config()
+            funcs.play_sound('./prebaked_tts/Configurationsaved.wav')
+            vrc.chatbox('💾 Configuration saved')
+
+        case 'loadconfig':
+            opts.load_config()
+            ui.app.refresh_all()
+            funcs.play_sound('./prebaked_tts/Configurationloaded.wav')
+            vrc.chatbox('📝 Configuration loaded')
 
         case 'thesenutsinyourmouth':
             vrc.chatbox('🤖 Do you like Imagine Dragons?')
@@ -387,12 +422,30 @@ def handle_command(command):
             time.sleep(3)
             vrc.chatbox('🤖 Imagine Dragon deez nuts across your face 😈')
             funcs.play_sound('./prebaked_tts/ImagineDragondeeznutsacrossyourface.wav')
+        
+        case 'screenshot':
+            screenshot_caption = 'Screenshot of VRChat'
+            if ':' in original_command:
+                screenshot_caption = original_command.split(':')[-1]
+            img = eyes.get_vrchat_screenshot()
+            if img is None:
+                vrc.chatbox('⚠ Failed to take screenshot')
+                return
+            image_as_b64 = eyes.convert_to_b64(img)
+            image_as_json = eyes.format_chatapi_img_obj(image_as_b64, screenshot_caption)
+            opts.message_array.append(image_as_json)
+            if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
+                ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
+            with open('screenshot.png', 'wb') as f:
+                f.write(eyes.convert_to_png(img))
+            vrc.chatbox('📸 Screenshot taken')
 
         # If an exact match is not confirmed, this last case will be used if provided
         case _:
             print(f"$Unknown command: {command}")
             funcs.play_sound('./prebaked_tts/Unknowncommand.wav')
-
+ui.register_command_handler(handle_command)
+funcs.register_command_handler(handle_command)
 
 def default_handler(address, *args):
     """ Default handler for OSC messages received from VRChat """
@@ -411,7 +464,10 @@ def check_doublepress_key(key):
     """ Check if ctrl key is pressed twice within a certain time window """
     global key_press_window_timeup
     if key == opts.key_trigger_key:
-        if opts.speaking: opts.panic = True
+        if opts.speaking or opts.generating: 
+            print('Panicking')
+            opts.panic = True
+            vrc.chatbox('⚠ Panicking')
         if time.time() > key_press_window_timeup:
             key_press_window_timeup = time.time() + opts.key_press_window
         else:
@@ -421,19 +477,24 @@ def check_doublepress_key(key):
 
 # (thread target) Initialize Faster Whisper and move its model to the GPU if possible
 def load_whisper():
-    global model
-    with whisper_lock:
+    with opts.whisper_lock:
         funcs.v_print("~Attempt to load Whisper...")
         # vrc.chatbox('🔄 Loading Voice Recognition...')
         model = None
         start_time = time.perf_counter()
-        model = WhisperModel(opts.whisper_model, device='cuda', compute_type="int8") # FasterWhisper
+        model = WhisperModel(opts.whisper_model_size, device=opts.whisper_device, compute_type=opts.whisper_compute_type) # FasterWhisper
+        opts.whisper_model = model
         end_time = time.perf_counter()
         funcs.v_print(f'--Whisper loaded in {end_time - start_time:.3f}s')
         # vrc.chatbox('✔️ Voice Recognition Loaded')
 
+def load_whisperX() -> None:
+    with opts.whisper_lock:
+        pass
 
-# Program Setup #################################################################################################################################
+# endregion
+
+# region Program Setup 
 
 # VRC OSC init
 # Client (Sending)
@@ -455,98 +516,262 @@ streamIn = pyAudio.open(format=FORMAT,
                   input_device_index=funcs.vb_out,
                   frames_per_buffer=CHUNK_SIZE)
 
+# endregion
 
-# Main loop - Wait for sound. If sound heard, record frames to wav file,
-#     then transcribe it with Whisper, then send that to ChatGPT, then
-#     take the text from ChatGPT and play it through TTS
-def loop():
-    # TODO: fix this global bullshit
-    global full_end_time
-    global frames
-    global lastFrame
-    global recording
-    global silence_timeout_timer
+# region Removed Loops
 
+# Wait for sound. If sound heard, record frames to wav file,
+#     then transcribe it with Whisper, then send that to LLM, then
+#     take the text from LLM and play it through TTS
+# def loop():
+#     # TODO: fix this global bullshit
+#     global full_end_time
+#     global frames
+#     global lastFrame
+#     global recording
+#     global silence_timeout_timer
+
+#     opts.LOOP = True
+
+#     full_end_time = time.perf_counter()
+#     print(f'--Program init took {full_end_time - full_start_time:.3f}s')
+
+#     while opts.whisper_model is None:
+#         time.sleep(0.1)
+#         pass
+    
+#     vrc.chatbox('✔️ Loaded')
+
+#     print("~Waiting for sound...")
+#     while opts.LOOP:
+#         try:
+#             data = streamIn.read(CHUNK_SIZE)
+#             # calculate root mean square of audio data
+#             rms = audioop.rms(data, 2)
+
+#             if opts.audio_trigger_enabled:
+#                 if (not recording and rms > opts.recording_threshold):
+#                     opts.trigger = True
+
+#             # Start recording if sound goes above threshold or parameter is triggered, but not if gpt is generating
+#             if (not recording and opts.trigger) and not opts.generating:
+#                 if lastFrame is not None:
+#                     # Add last frame to buffer, in case the next frame starts recording in the middle of a word
+#                     frames.append(lastFrame)
+#                 frames.append(data)
+#                 vrc.chatbox('👂 Listening...')
+#                 funcs.v_print("~Recording...")
+#                 recording = True
+#                 # set timeout to now + SILENCE_TIMEOUT seconds
+#                 silence_timeout_timer = time.time() + opts.silence_timeout
+#                 if opts.sound_feedback:
+#                     funcs.play_sound_threaded(funcs.speech_on)
+#             elif recording:  # If already recording, continue appending frames
+#                 frames.append(data)
+#                 if rms < opts.recording_threshold:
+#                     if time.time() > silence_timeout_timer:  # if silent for longer than SILENCE_TIMEOUT, save
+#                         funcs.v_print("~Saving (silence)...")
+#                         recording = False
+#                         opts.trigger = False
+#                         save_recorded_frames(frames)
+#                         funcs.v_print("~Waiting for sound...")
+#                         frames = []
+#                         opts.panic = False
+#                 else:
+#                     # set timeout to now + SILENCE_TIMEOUT seconds
+#                     silence_timeout_timer = time.time() + opts.silence_timeout
+
+#                 # if recording for longer than MAX_RECORDING_TIME, save
+#                 if len(frames) * CHUNK_SIZE >= opts.max_recording_time * RATE:
+#                     funcs.v_print("~Saving (length)...")
+#                     recording = False
+#                     opts.trigger = False
+#                     save_recorded_frames(frames)
+#                     funcs.v_print("~Waiting for sound...")
+#                     frames = []
+#                     opts.panic = False
+
+#             lastFrame = data
+#             # time.sleep(0.001)  # sleep to avoid burning cpu
+#         except Exception as e:
+#             print(f'!!Exception:\n{e}')
+#             vrc.chatbox(f'⚠ {e}')
+#             streamIn.close()
+#             opts.LOOP = False
+#             sys.exit(e)
+#         except KeyboardInterrupt:
+#             print('Keyboard interrupt')
+#             vrc.chatbox(f'⚠ Quitting')
+#             streamIn.close()
+#             vrc.osc_server.shutdown()
+#             opts.LOOP = False
+#             sys.exit("KeyboardInterrupt")
+#     print("Exiting, Bye!")
+#     streamIn.close()
+#     vrc.osc_server.shutdown()
+
+# def loop2():
+#     opts.LOOP = True
+
+#     full_end_time = time.perf_counter()
+#     print(f'--Program init took {full_end_time - full_start_time:.3f}s')
+
+#     while opts.whisper_model is None:
+#         time.sleep(0.1)
+#         pass
+
+#     vrc.chatbox('✔️ Loaded')
+
+#     while opts.LOOP:
+#         try:
+#             if not opts.bot_responded:
+#                 opts.bot_responded = True
+#                 while len(opts.message_queue): 
+#                     text = opts.message_queue.pop(0)
+#                     if text is not None:
+#                         if text.lower().startswith("system"):
+#                             handle_command(text.lower())
+#                             continue
+#                         else: 
+#                             funcs.append_user_message(text)
+#                 if len(opts.message_array):
+#                     last_message = opts.message_array[-1]["content"]
+
+#                     if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
+#                         ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
+
+#                     if opts.parrot_mode:
+#                         text = last_message
+#                     else: 
+#                         text = chatgpt.generate()
+
+#                     if text is None: 
+#                         funcs.v_print("!!No text returned from LLM")
+#                     else:
+#                         if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
+#                             ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
+#                             ui.app.ai_stuff_frame.manual_entry_window.button_send.configure(text="Send", state="normal")
+#                             ui.app.ai_stuff_frame.manual_entry_window.textfield_text_entry.configure(state="normal")
+#                         if opts.chatbox and len(text) > 140:
+#                             funcs.cut_up_text(text)
+#                         else:
+#                             if opts.parrot_mode:
+#                                 e_text = '💬 ' + text
+#                             else:
+#                                 e_text = '🤖 ' + text
+#                             vrc.chatbox(f'{e_text}')
+#                             if len(text): funcs.tts(e_text)
+
+#                     vrc.set_parameter('VoiceRec_End', True)
+#                     vrc.set_parameter('CGPT_Result', True)
+#                     vrc.set_parameter('CGPT_End', True)
+#             else:
+#                 if opts.panic: opts.panic = False
+#                 time.sleep(0.05)
+#         except Exception as e:
+#             print(f'!!Exception:\n{e}')
+#             vrc.chatbox(f'⚠ {e}')
+#             streamIn.close()
+#             opts.LOOP = False
+#             sys.exit(e)
+#         except KeyboardInterrupt:
+#             print('Keyboard interrupt')
+#             vrc.chatbox(f'⚠ Quitting')
+#             streamIn.close()
+#             vrc.osc_server.shutdown()
+#             opts.LOOP = False
+#             sys.exit("KeyboardInterrupt")
+#     print("Exiting, Bye!")
+#     streamIn.close()
+#     vrc.osc_server.shutdown()
+
+# endregion
+
+# region Main loop 
+
+def loop3():
     opts.LOOP = True
 
     full_end_time = time.perf_counter()
     print(f'--Program init took {full_end_time - full_start_time:.3f}s')
 
-    while model is None:
+    while opts.whisper_model is None:
         time.sleep(0.1)
         pass
-    
+
     vrc.chatbox('✔️ Loaded')
 
-    print("~Waiting for sound...")
     while opts.LOOP:
         try:
-            data = streamIn.read(CHUNK_SIZE)
-            # calculate root mean square of audio data
-            rms = audioop.rms(data, 2)
+            if not opts.bot_responded:
+                opts.bot_responded = True
+                while len(opts.message_queue): 
+                    text = opts.message_queue.pop(0)
+                    if text is not None:
+                        if text.lower().startswith("system"):
+                            handle_command(text.lower())
+                            continue
+                        else: 
+                            funcs.append_user_message(text)
+                if len(opts.message_array):
+                    content = opts.message_array[-1].get("content", "")
+                    if type(content) != list:
+                        last_message = content
+                    else:
+                        last_message = content[0].get("text", "")
 
-            if opts.audio_trigger_enabled:
-                if (not recording and rms > opts.THRESHOLD):
-                    opts.trigger = True
+                    if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
+                        ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
 
-            # Start recording if sound goes above threshold or parameter is triggered, but not if gpt is generating
-            if (not recording and opts.trigger) and not opts.generating:
-                if lastFrame is not None:
-                    # Add last frame to buffer, in case the next frame starts recording in the middle of a word
-                    frames.append(lastFrame)
-                frames.append(data)
-                vrc.chatbox('👂 Listening...')
-                funcs.v_print("~Recording...")
-                recording = True
-                # set timeout to now + SILENCE_TIMEOUT seconds
-                silence_timeout_timer = time.time() + opts.SILENCE_TIMEOUT
-                if opts.soundFeedback:
-                    funcs.play_sound_threaded(speech_on)
-            elif recording:  # If already recording, continue appending frames
-                frames.append(data)
-                if rms < opts.THRESHOLD:
-                    if time.time() > silence_timeout_timer:  # if silent for longer than SILENCE_TIMEOUT, save
-                        funcs.v_print("~Saving (silence)...")
-                        recording = False
-                        opts.trigger = False
-                        save_recorded_frames(frames)
-                        funcs.v_print("~Waiting for sound...")
-                        frames = []
-                        opts.panic = False
-                else:
-                    # set timeout to now + SILENCE_TIMEOUT seconds
-                    silence_timeout_timer = time.time() + opts.SILENCE_TIMEOUT
+                    if opts.parrot_mode:
+                        text = last_message
+                    else: 
+                        text = chatgpt.generate()
+                    vrc.set_parameter(opts.vrc_thinking_parameter.get("name"), opts.vrc_thinking_parameter.get("value_off"))
 
-                # if recording for longer than MAX_RECORDING_TIME, save
-                if len(frames) * CHUNK_SIZE >= opts.MAX_RECORDING_TIME * RATE:
-                    funcs.v_print("~Saving (length)...")
-                    recording = False
-                    opts.trigger = False
-                    save_recorded_frames(frames)
-                    funcs.v_print("~Waiting for sound...")
-                    frames = []
-                    opts.panic = False
 
-            lastFrame = data
-            # time.sleep(0.001)  # sleep to avoid burning cpu
+                    if text is None: 
+                        funcs.v_print("!!No text returned from LLM")
+                    else:
+                        if ui.app.ai_stuff_frame.manual_entry_window_is_open.get() == True:
+                            ui.app.ai_stuff_frame.manual_entry_window.refresh_messages()
+                            ui.app.ai_stuff_frame.manual_entry_window.button_send.configure(text="Send", state="normal")
+                            ui.app.ai_stuff_frame.manual_entry_window.textfield_text_entry.configure(state="normal")
+                        if opts.chatbox and len(text) > 140:
+                            funcs.cut_up_text(text)
+                        else:
+                            with opts.is_speaking_lock:
+                                if opts.parrot_mode:
+                                    e_text = '💬 ' + text
+                                else:
+                                    e_text = '🤖 ' + text
+                                vrc.chatbox(f'{e_text}')
+                                if len(text): funcs.tts(e_text)
+
+                    vrc.set_parameter('VoiceRec_End', True)
+                    vrc.set_parameter('CGPT_Result', True)
+                    vrc.set_parameter('CGPT_End', True)
+            else:
+                if opts.panic: opts.panic = False
+                time.sleep(0.05)
         except Exception as e:
             print(f'!!Exception:\n{e}')
             vrc.chatbox(f'⚠ {e}')
-            streamIn.close()
             opts.LOOP = False
             sys.exit(e)
         except KeyboardInterrupt:
             print('Keyboard interrupt')
             vrc.chatbox(f'⚠ Quitting')
-            streamIn.close()
             vrc.osc_server.shutdown()
             opts.LOOP = False
             sys.exit("KeyboardInterrupt")
-    print("Exiting, Bye!")
-    streamIn.close()
-    vrc.osc_server.shutdown()
+    
 
-def start_server(server):  # (thread target) Starts OSC Listening server
+# endregion
+
+# region Threads 
+
+def start_osc_server(server):  # (thread target) Starts OSC Listening server
     funcs.v_print(f'~Starting OSC Listener on {ip}:{outPort}')
     server.serve_forever()
 
@@ -559,18 +784,23 @@ def start_key_listener():  # (thread target) Starts Keyboard Listener
 def start_ui(): # (thread target) Starts GUI
     ui.initialize()
 
+
 whisper_thread = threading.Thread(name='whisper-thread', target=load_whisper)
 serverThread = threading.Thread(
-    name='oscserver-thread', target=start_server, args=(vrc.osc_server,), daemon=True)
+    name='oscserver-thread', target=start_osc_server, args=(vrc.osc_server,), daemon=True)
 key_listener_thread = threading.Thread(name='keylistener-thread', target=start_key_listener, daemon=True)
 uithread = threading.Thread(name="ui-thread", target=start_ui, daemon=True)
-mainLoopThread = threading.Thread(name='mainloop-thread', target=loop)
+earsThread = threading.Thread(name='ears-thread', target=listening.loop, daemon=True)
+mainLoopThread = threading.Thread(name='mainloop-thread', target=loop3)
+
+# endregion
 
 whisper_thread.start()
 serverThread.start()
 key_listener_thread.start()
 whisper_thread.join()  # Wait for Whisper to be loaded first before trying to use it
 uithread.start()
+earsThread.start()
 mainLoopThread.start()
 uithread.join()
 sys.exit(0)

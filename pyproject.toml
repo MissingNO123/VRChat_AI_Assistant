@@ -1,0 +1,67 @@
+[project]
+name = "vrchat-ai-assistant"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "bshot>=1.0.5",
+    "customtkinter>=5.2.2",
+    "elevenlabs==0.1.1",
+    "faster-whisper>=1.2.0",
+    "ffmpeg-python>=0.2.0",
+    "google-cloud-texttospeech>=2.27.0",
+    "gtts>=2.5.4",
+    "huggingface-hub>=0.34.4",
+    "librosa>=0.11.0",
+    "numpy==1.26.4",
+    "nvidia-cublas>=13.0.0.19",
+    "openai==0.28",
+    "openai-whisper>=20250625",
+    "opencv-python==4.7.0.72",
+    "psutil>=7.0.0",
+    "pyaudio>=0.2.14",
+    "pynput>=1.8.1",
+    "python-dotenv>=1.1.1",
+    "python-osc>=1.9.3",
+    "pyttsx3>=2.99",
+    "scipy==1.16.1",
+    "sentence-transformers>=5.1.0",
+    "soundfile>=0.13.1",
+    "speechrecognition>=3.14.3",
+    "torch>=2.8.0",
+    "transformers>=4.55.4",
+    "ultralytics==8.1.47",
+]
+
+[project.optional-dependencies]
+
+cu129 = [
+    "torch==2.8.0+cu129", 
+]
+
+[tool.uv]
+# conflicts = [
+
+#     ]
+environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'windows' and platform_machine == 'AMD64'",
+]
+index-strategy = "unsafe-best-match"
+
+# [[tool.uv.index]]
+# name = "torch-cu124"
+# url = "https://download.pytorch.org/whl/cu124"
+
+# [[tool.uv.index]]
+# name = "torch-cu126"
+# url = "https://download.pytorch.org/whl/cu126"
+
+# [[tool.uv.index]]
+# name = "torch-cu128"
+# url = "https://download.pytorch.org/whl/cu128"
+
+[[tool.uv.index]]
+name = "torch-cu129"
+url = "https://download.pytorch.org/whl/cu129"

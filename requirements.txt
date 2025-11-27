@@ -6,8 +6,29 @@ elevenlabs==0.1.1
 python-dotenv
 openai-whisper
 faster-whisper
+<<<<<<< HEAD
 ffmpeg
 google-cloud-texttospeech
 pynput
 pyttsx3
 customtkinter
+=======
+ffmpeg-python
+google-cloud-texttospeech
+pynput
+pyttsx3
+customtkinter
+SpeechRecognition
+librosa
+soundfile
+psutil
+ultralytics==8.1.47
+opencv-python==4.7.0.72
+huggingface-hub
+bshot==1.0.4
+# audioop
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch==2.2.1
+transformers
+numpy
+>>>>>>> 5ebe4176d21fe27f4959c9ee53d8e29c341fd12d
